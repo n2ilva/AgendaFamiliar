@@ -47,35 +47,87 @@ const missingVars = Object.entries(firebaseConfig)
   .filter(([_, value]) => !value)
   .map(([key]) => key);
 
+// Track if Firebase is properly configured
+let firebaseReady = false;
+
 if (missingVars.length > 0) {
   console.warn('[Firebase] Missing configuration for:', missingVars.join(', '));
-  console.warn('[Firebase] Ensure your .env or EAS secrets are configured correctly. The app will proceed but Firebase features may fail.');
-}
-
-// Initialize Firebase
-if (!firebase.apps.length) {
-  const app = firebase.initializeApp(firebaseConfig);
-
-  // High-reliability Auth initialization for React Native
+  console.warn('[Firebase] Firebase features will be DISABLED. Configure EAS secrets or .env file.');
+} else {
+  // Initialize Firebase ONLY when config is complete
   try {
-    // We use the modular initializeAuth to explicitly set AsyncStorage persistence
-    const { initializeAuth, getReactNativePersistence } = require('firebase/auth');
+    if (!firebase.apps.length) {
+      const app = firebase.initializeApp(firebaseConfig);
 
-    if (getReactNativePersistence && AsyncStorage) {
-      console.log('[Firebase] Initializing Auth with ReactNativePersistence (AsyncStorage)...');
-      initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage)
-      });
-      console.log('[Firebase] Auth initialization successful');
+      // High-reliability Auth initialization for React Native
+      try {
+        const { initializeAuth, getReactNativePersistence } = require('firebase/auth');
+
+        if (getReactNativePersistence && AsyncStorage) {
+          console.log('[Firebase] Initializing Auth with ReactNativePersistence (AsyncStorage)...');
+          initializeAuth(app, {
+            persistence: getReactNativePersistence(AsyncStorage)
+          });
+          console.log('[Firebase] Auth initialization successful');
+        }
+      } catch (authError) {
+        console.log('[Firebase] Note: Using standard Auth initialization');
+      }
     }
+    firebaseReady = true;
+    console.log('[Firebase] Initialization complete');
   } catch (error) {
-    // If modular initialization fails or isn't needed, we continue with compat
-    console.log('[Firebase] Note: Using standard Auth initialization');
+    console.error('[Firebase] Initialization failed:', error);
   }
 }
 
-export const auth = firebase.auth();
-export const firestore = firebase.firestore();
+// Safe exports - return mock objects if Firebase is not initialized
+const getAuth = () => {
+  if (firebaseReady) {
+    return firebase.auth();
+  }
+  // Return a mock auth object that doesn't crash
+  return {
+    onAuthStateChanged: (callback: any) => {
+      // Immediately call with null user
+      setTimeout(() => callback(null), 0);
+      return () => { }; // unsubscribe function
+    },
+    signInWithEmailAndPassword: async () => {
+      throw new Error('Firebase não configurado. Verifique as variáveis de ambiente.');
+    },
+    createUserWithEmailAndPassword: async () => {
+      throw new Error('Firebase não configurado. Verifique as variáveis de ambiente.');
+    },
+    signOut: async () => { },
+    currentUser: null,
+  } as any;
+};
+
+const getFirestore = () => {
+  if (firebaseReady) {
+    return firebase.firestore();
+  }
+  // Return a mock firestore object
+  return {
+    collection: () => ({
+      doc: () => ({
+        get: async () => ({ exists: false, data: () => null }),
+        set: async () => { },
+        update: async () => { },
+        delete: async () => { },
+      }),
+      where: () => ({
+        get: async () => ({ docs: [], empty: true }),
+      }),
+      onSnapshot: () => () => { },
+    }),
+  } as any;
+};
+
+export const auth = getAuth();
+export const firestore = getFirestore();
 export const db = firestore;
+export const isFirebaseReady = firebaseReady;
 
 export default firebase;
