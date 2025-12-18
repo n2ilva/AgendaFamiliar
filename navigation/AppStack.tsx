@@ -23,10 +23,13 @@ const getHeaderOptions = (colors: any, title: string, options?: any) => ({
   headerTitleAlign: 'center' as const,
   headerStyle: {
     backgroundColor: colors.background,
-    height: 70,
+    elevation: 0, // Remove shadow on Android
+    shadowOpacity: 0, // Remove shadow on iOS
   },
-  headerTitleContainerStyle: {
-    justifyContent: 'center' as const,
+  headerTitleStyle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '600' as const,
   },
   ...options,
 });
@@ -52,12 +55,12 @@ function SettingsStack() {
       <Stack.Screen
         name="FamilyMembers"
         component={FamilyMembersScreen}
-        options={{ title: 'Membros da Família' }}
+        options={getHeaderOptions(colors, 'Membros da Família')}
       />
       <Stack.Screen
         name="Approvals"
         component={ApprovalsScreen}
-        options={{ title: 'Aprovações' }}
+        options={getHeaderOptions(colors, 'Aprovações')}
       />
     </Stack.Navigator>
   );
@@ -88,7 +91,7 @@ function NotificationBadge() {
   return (
     <TouchableOpacity
       onPress={() => navigation.navigate('Approvals' as never)}
-      style={{ marginRight: 15, position: 'relative' }}
+      style={{ position: 'relative' }}
     >
       <Ionicons name="notifications-outline" size={24} color={colors.text} />
       {pendingCount > 0 && (
@@ -127,7 +130,7 @@ function HomeStack() {
       <Stack.Screen
         name="AddEdit"
         component={AddEditScreen}
-        options={{ title: 'Editar Tarefa' }}
+        options={getHeaderOptions(colors, 'Editar Tarefa')}
       />
       <Stack.Screen
         name="Approvals"
@@ -163,7 +166,7 @@ function CalendarStack() {
       <Stack.Screen
         name="AddEdit"
         component={AddEditScreen}
-        options={{ title: 'Editar Tarefa' }}
+        options={getHeaderOptions(colors, 'Editar Tarefa')}
       />
     </Stack.Navigator>
   );

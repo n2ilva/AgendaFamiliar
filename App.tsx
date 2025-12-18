@@ -26,7 +26,7 @@ export default function App() {
     console.log('[App] Setting up auth state listener...');
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       console.log('[App] Auth state changed:', firebaseUser ? `User: ${firebaseUser.email}` : 'No user');
-      
+
       if (firebaseUser) {
         // User is signed in
         try {
@@ -57,7 +57,7 @@ export default function App() {
     if (user?.familyId) {
       const unsubscribe = initializeTasks();
       initializeCategories(user.familyId);
-      
+
       return () => {
         unsubscribe();
         cleanupCategories();
@@ -68,7 +68,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right']}>
           <StatusBar style={preferences.theme === 'dark' ? 'light' : 'dark'} backgroundColor={colors.background} />
           <RootNavigator />
         </SafeAreaView>
