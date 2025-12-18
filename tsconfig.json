@@ -6,32 +6,32 @@
       "@/*": [
         "./*"
       ],
+      "@src/*": [
+        "./src/*"
+      ],
       "@components/*": [
-        "./components/*"
+        "./src/components/*"
       ],
       "@screens/*": [
-        "./screens/*"
-      ],
-      "@services/*": [
-        "./services/*"
+        "./src/screens/*"
       ],
       "@store/*": [
-        "./store/*"
+        "./src/store/*"
       ],
       "@hooks/*": [
-        "./hooks/*"
+        "./src/hooks/*"
       ],
       "@utils/*": [
-        "./utils/*"
+        "./src/utils/*"
       ],
       "@types": [
-        "./types"
+        "./src/types"
       ],
       "@styles/*": [
-        "./styles/*"
+        "./src/styles/*"
       ],
       "@navigation/*": [
-        "./navigation/*"
+        "./src/navigation/*"
       ],
       "@constants/*": [
         "./constants/*"
@@ -40,10 +40,10 @@
         "./assets/*"
       ],
       "@domain/*": [
-        "./domain/*"
+        "./src/domain/*"
       ],
       "@infrastructure/*": [
-        "./infrastructure/*"
+        "./src/infrastructure/*"
       ]
     }
   },

@@ -1,20 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useThemeColors } from '@hooks/useThemeColors';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import RootNavigator from '@navigation/RootNavigator';
+import SplashScreen from '@screens/SplashScreen';
 import { useUserStore } from '@store/userStore';
 import { useTaskStore } from '@store/taskStore';
 import { useCategoryStore } from '@store/categoryStore';
-import { authService } from '@services/authService';
-import { auth } from '@services/firebase';
-import { notificationService } from '@services/notificationService';
-import './services/i18n';
+import { authService, auth, notificationService } from '@src/firebase';
+import type { User as FirebaseUser } from 'firebase/auth';
+import './src/config/i18n';
 import i18n from 'i18next';
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
   const setUser = useUserStore((state) => state.setUser);
   const user = useUserStore((state) => state.user);
   const preferences = useUserStore((state) => state.preferences);
@@ -26,7 +27,7 @@ export default function App() {
   useEffect(() => {
     // Listen to Firebase Auth state changes
     console.log('[App] Setting up auth state listener...');
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: any) => {
       console.log('[App] Auth state changed:', firebaseUser ? `User: ${firebaseUser.email}` : 'No user');
 
       if (firebaseUser) {
@@ -44,6 +45,9 @@ export default function App() {
         console.log('[App] User signed out');
         setUser(null);
       }
+
+      // Finaliza o loading após verificar autenticação
+      setIsLoading(false);
     });
 
     // Request notification permissions
@@ -73,6 +77,20 @@ export default function App() {
       i18n.changeLanguage(preferences.language);
     }
   }, [preferences.language]);
+
+  // Mostra SplashScreen enquanto verifica autenticação
+  if (isLoading) {
+    return (
+      <GestureHandlerRootView style={styles.root}>
+        <SafeAreaProvider>
+          <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['left', 'right']}>
+            <StatusBar style={preferences.theme === 'dark' ? 'light' : 'dark'} backgroundColor={colors.background} />
+            <SplashScreen />
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={styles.root}>
