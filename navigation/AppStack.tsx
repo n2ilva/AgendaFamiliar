@@ -17,6 +17,20 @@ import { useNavigation } from '@react-navigation/native';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+// Helper function to get standardized header options
+const getHeaderOptions = (colors: any, title: string, options?: any) => ({
+  title,
+  headerTitleAlign: 'center' as const,
+  headerStyle: {
+    backgroundColor: colors.background,
+    height: 70,
+  },
+  headerTitleContainerStyle: {
+    justifyContent: 'center' as const,
+  },
+  ...options,
+});
+
 function SettingsStack() {
   const colors = useThemeColors();
   return (
@@ -34,7 +48,7 @@ function SettingsStack() {
         cardStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="SettingsMain" component={SettingsScreen} options={{ title: 'Configurações' }} />
+      <Stack.Screen name="SettingsMain" component={SettingsScreen} options={getHeaderOptions(colors, 'Configurações')} />
       <Stack.Screen
         name="FamilyMembers"
         component={FamilyMembersScreen}
@@ -106,15 +120,9 @@ function HomeStack() {
       <Stack.Screen
         name="HomeStack"
         component={HomeScreen}
-        options={{
-          title: 'Tarefas',
-          headerTitleAlign: 'center',
+        options={getHeaderOptions(colors, 'Tarefas', {
           headerRight: () => <NotificationBadge />,
-          headerStyle: {
-            backgroundColor: colors.background,
-            height: 70,
-          },
-        }}
+        })}
       />
       <Stack.Screen
         name="AddEdit"
@@ -150,10 +158,7 @@ function CalendarStack() {
       <Stack.Screen
         name="CalendarMain"
         component={CalendarScreen}
-        options={{
-          title: 'Calendário',
-          headerTitleAlign: 'center',
-        }}
+        options={getHeaderOptions(colors, 'Calendário')}
       />
       <Stack.Screen
         name="AddEdit"

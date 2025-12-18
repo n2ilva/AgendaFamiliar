@@ -1,3 +1,6 @@
+// IMPORTANT: This must be the first import for Firebase to work on React Native
+import 'react-native-get-random-values';
+
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
@@ -34,7 +37,7 @@ if (missingVars.length > 0) {
   console.error('Missing Firebase configuration:', missingVars);
   throw new Error(
     `Firebase configuration error: Missing values for: ${missingVars.join(', ')}. ` +
-      'Please ensure your app.config.js or .env file is properly configured with all required Firebase credentials.'
+    'Please ensure your app.config.js or .env file is properly configured with all required Firebase credentials.'
   );
 }
 
