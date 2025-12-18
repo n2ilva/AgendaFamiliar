@@ -48,11 +48,8 @@ const missingVars = Object.entries(firebaseConfig)
   .map(([key]) => key);
 
 if (missingVars.length > 0) {
-  console.error('Missing Firebase configuration:', missingVars);
-  throw new Error(
-    `Firebase configuration error: Missing values for: ${missingVars.join(', ')}. ` +
-    'Please ensure your app.config.js or .env file is properly configured with all required Firebase credentials.'
-  );
+  console.warn('[Firebase] Missing configuration for:', missingVars.join(', '));
+  console.warn('[Firebase] Ensure your .env or EAS secrets are configured correctly. The app will proceed but Firebase features may fail.');
 }
 
 // Initialize Firebase
