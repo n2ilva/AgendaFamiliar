@@ -10,56 +10,78 @@ export const authService = {
     password: string,
     displayName: string
   ): Promise<User> {
-    const userCredential = await auth.createUserWithEmailAndPassword(
-      email,
-      password
-    );
-    const firebaseUser = userCredential.user;
+    console.log('[AuthService] Attempting registration for:', email);
+    try {
+      const userCredential = await auth.createUserWithEmailAndPassword(
+        email,
+        password
+      );
+      const firebaseUser = userCredential.user;
 
-    if (displayName && firebaseUser) {
-      await firebaseUser.updateProfile({ displayName });
+      if (displayName && firebaseUser) {
+        await firebaseUser.updateProfile({ displayName });
+      }
+
+      console.log('[AuthService] Registration successful for:', email);
+
+      const user: User = {
+        uid: firebaseUser?.uid || '',
+        email: firebaseUser?.email || '',
+        displayName: displayName || firebaseUser?.displayName || undefined,
+        photoURL: firebaseUser?.photoURL || undefined,
+      };
+
+      // Create profile in Firestore
+      await userService.createUserProfile(user);
+
+      useUserStore.getState().setUser(user);
+      return user;
+    } catch (error: any) {
+      console.error('[AuthService] Registration error for:', email);
+      console.error('[AuthService] Error code:', error.code);
+      console.error('[AuthService] Error message:', error.message);
+      console.error('[AuthService] Full error:', error);
+      throw error;
     }
-
-    const user: User = {
-      uid: firebaseUser?.uid || '',
-      email: firebaseUser?.email || '',
-      displayName: displayName || firebaseUser?.displayName || undefined, // Use arg if available immediately
-      photoURL: firebaseUser?.photoURL || undefined,
-    };
-
-    // Create profile in Firestore
-    await userService.createUserProfile(user);
-
-    useUserStore.getState().setUser(user);
-    return user;
   },
 
   async login(email: string, password: string): Promise<User> {
-    const userCredential = await auth.signInWithEmailAndPassword(
-      email,
-      password
-    );
-    const firebaseUser = userCredential.user;
-    if (!firebaseUser) throw new Error('Falha no login');
+    console.log('[AuthService] Attempting login for:', email);
+    try {
+      const userCredential = await auth.signInWithEmailAndPassword(
+        email,
+        password
+      );
+      const firebaseUser = userCredential.user;
+      if (!firebaseUser) throw new Error('Falha no login');
 
-    let user: User = {
-      uid: firebaseUser.uid,
-      email: firebaseUser.email || '',
-      displayName: firebaseUser.displayName || undefined,
-      photoURL: firebaseUser.photoURL || undefined,
-    };
+      console.log('[AuthService] Login successful for:', email);
 
-    // Fetch extended profile
-    const profile = await userService.getUserProfile(firebaseUser.uid);
-    if (profile) {
-      user = { ...user, ...profile };
-    } else {
-      // If no profile exists (legacy user?), create one
-      await userService.createUserProfile(user);
+      let user: User = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || undefined,
+        photoURL: firebaseUser.photoURL || undefined,
+      };
+
+      // Fetch extended profile
+      const profile = await userService.getUserProfile(firebaseUser.uid);
+      if (profile) {
+        user = { ...user, ...profile };
+      } else {
+        // If no profile exists (legacy user?), create one
+        await userService.createUserProfile(user);
+      }
+
+      useUserStore.getState().setUser(user);
+      return user;
+    } catch (error: any) {
+      console.error('[AuthService] Login error for:', email);
+      console.error('[AuthService] Error code:', error.code);
+      console.error('[AuthService] Error message:', error.message);
+      console.error('[AuthService] Full error:', error);
+      throw error;
     }
-
-    useUserStore.getState().setUser(user);
-    return user;
   },
 
   async logout(): Promise<void> {
