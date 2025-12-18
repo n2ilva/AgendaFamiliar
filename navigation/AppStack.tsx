@@ -110,6 +110,10 @@ function HomeStack() {
           title: 'Tarefas',
           headerTitleAlign: 'center',
           headerRight: () => <NotificationBadge />,
+          headerStyle: {
+            backgroundColor: colors.background,
+            height: 70,
+          },
         }}
       />
       <Stack.Screen
