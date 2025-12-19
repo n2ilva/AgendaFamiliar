@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { useThemeColors } from '@hooks/useThemeColors';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import i18n from 'i18next';
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const setUser = useUserStore((state) => state.setUser);
+  const loadPreferences = useUserStore((state) => state.loadPreferences);
   const user = useUserStore((state) => state.user);
   const preferences = useUserStore((state) => state.preferences);
   const colors = useThemeColors();
@@ -25,6 +27,9 @@ export default function App() {
   const cleanupCategories = useCategoryStore((state) => state.cleanup);
 
   useEffect(() => {
+    // Load saved preferences first
+    loadPreferences();
+
     // Listen to Firebase Auth state changes
     console.log('[App] Setting up auth state listener...');
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser: any) => {
@@ -70,6 +75,37 @@ export default function App() {
       };
     }
   }, [user?.familyId]);
+
+  // Handle notification actions (Complete/Skip)
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(async (response) => {
+      const { actionIdentifier, notification } = response;
+      const { taskId, taskTitle } = notification.request.content.data as { taskId: string; taskTitle: string };
+
+      console.log('[App] Notification action:', actionIdentifier, 'for task:', taskId);
+
+      if (!taskId) return;
+
+      const { updateTask } = useTaskStore.getState();
+
+      try {
+        if (actionIdentifier === 'complete') {
+          // Mark task as completed
+          await updateTask(taskId, { completed: true });
+          console.log('[App] Task completed via notification:', taskTitle);
+        } else if (actionIdentifier === 'skip') {
+          // Skip task (for recurring tasks)
+          // This would need a skip function in taskStore
+          console.log('[App] Task skipped via notification:', taskTitle);
+          // TODO: Implement skip logic if needed
+        }
+      } catch (error) {
+        console.error('[App] Error handling notification action:', error);
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     if (preferences.language) {

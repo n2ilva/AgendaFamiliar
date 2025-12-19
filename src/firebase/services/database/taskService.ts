@@ -46,6 +46,13 @@ class TaskService {
     subscribeToTasks(familyId: string, onUpdate: (tasks: Task[]) => void): () => void {
         return this.repository.subscribe(familyId, onUpdate);
     }
+
+    /**
+     * Obtém tarefas concluídas antigas (para limpeza automática)
+     */
+    async getOldCompletedTasks(familyId: string, beforeDate: string): Promise<Task[]> {
+        return this.repository.getOldCompletedTasks(familyId, beforeDate);
+    }
 }
 
 // Export singleton with Firestore repository

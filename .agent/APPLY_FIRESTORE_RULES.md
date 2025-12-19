@@ -1,3 +1,39 @@
+# 🔥 Como Aplicar as Regras do Firestore
+
+## ⚠️ IMPORTANTE: Você precisa aplicar as regras manualmente!
+
+O erro `Missing or insufficient permissions` indica que as regras do Firestore não estão aplicadas ou estão desatualizadas.
+
+---
+
+## 📋 Passos para Aplicar as Regras
+
+### 1. Acesse o Firebase Console
+```
+https://console.firebase.google.com/
+```
+
+### 2. Selecione seu Projeto
+- Projeto: **agendafamiliarkotlin**
+
+### 3. Vá para Firestore Database
+- No menu lateral, clique em **Firestore Database**
+- Clique na aba **Rules** (Regras)
+
+### 4. Cole as Regras Atualizadas
+Copie TODO o conteúdo do arquivo `firestore.rules` e cole no editor de regras.
+
+**Arquivo:** `agenda-familiar/firestore.rules`
+
+### 5. Publique as Regras
+- Clique no botão **Publish** (Publicar)
+- Aguarde a confirmação
+
+---
+
+## 📄 Regras Atualizadas (Copie e Cole)
+
+```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -156,7 +192,7 @@ service cloud.firestore {
     }
     
     // ============================================
-    // CATEGORIES COLLECTION (se existir)
+    // CATEGORIES COLLECTION
     // ============================================
     match /categories/{categoryId} {
       // Leitura: Membros da família
@@ -183,3 +219,41 @@ service cloud.firestore {
     }
   }
 }
+```
+
+---
+
+## ✅ Verificação
+
+Após aplicar as regras, teste:
+
+1. **Recarregue o app** (Ctrl+R ou Cmd+R)
+2. **Verifique os logs** - não deve mais aparecer "Missing or insufficient permissions"
+3. **Teste criar uma tarefa** - deve funcionar
+4. **Teste filtrar tarefas** - deve funcionar
+
+---
+
+## 🔍 Se o Erro Persistir
+
+### Verifique se as regras foram publicadas:
+1. No Firebase Console, vá em **Firestore Database** → **Rules**
+2. Verifique se a data de publicação é recente
+3. Se não, clique em **Publish** novamente
+
+### Verifique se o usuário está autenticado:
+- Faça logout e login novamente no app
+
+### Limpe o cache:
+- No terminal do Expo: pressione `r` para reload
+- Ou feche e abra o app novamente
+
+---
+
+## 📝 Nota Importante
+
+As regras do Firestore são aplicadas **imediatamente** após a publicação. Não é necessário reiniciar o app, mas é recomendado fazer um reload para garantir.
+
+---
+
+**Status:** ⚠️ AÇÃO NECESSÁRIA - Aplique as regras manualmente no Firebase Console!

@@ -115,6 +115,38 @@ export class FirestoreTaskRepository implements ITaskRepository {
         }
       );
   }
+
+  async getOldCompletedTasks(familyId: string, beforeDate: string): Promise<Task[]> {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Usuário não autenticado');
+
+    const beforeTimestamp = new Date(beforeDate);
+
+    // Simplified query to avoid composite index requirement
+    // We'll filter by date in code instead
+    const snapshot = await firestore
+      .collection(TASKS_COLLECTION)
+      .where('familyId', '==', familyId)
+      .where('completed', '==', true)
+      .get();
+
+    // Filter by date in code
+    return snapshot.docs
+      .map((doc: any) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate?.().toISOString() || new Date().toISOString(),
+          updatedAt: data.updatedAt?.toDate?.().toISOString() || new Date().toISOString(),
+        };
+      })
+      .filter((task: Task) => {
+        if (!task.updatedAt) return false;
+        const updatedDate = new Date(task.updatedAt);
+        return updatedDate < beforeTimestamp;
+      }) as Task[];
+  }
 }
 
 // Export singleton instance

@@ -21,6 +21,34 @@ Notifications.setNotificationHandler({
  */
 export const notificationService = {
     /**
+     * Configura categorias de notificação com ações
+     */
+    async setupNotificationCategories(): Promise<void> {
+        try {
+            // Define categoria de notificação com ações
+            await Notifications.setNotificationCategoryAsync('task-notification', [
+                {
+                    identifier: 'complete',
+                    buttonTitle: '✓ Concluir',
+                    options: {
+                        opensAppToForeground: false, // Não abre o app
+                    },
+                },
+                {
+                    identifier: 'skip',
+                    buttonTitle: '⏭ Pular',
+                    options: {
+                        opensAppToForeground: false, // Não abre o app
+                    },
+                },
+            ]);
+            console.log('[NotificationService] Notification categories configured');
+        } catch (error) {
+            console.error('[NotificationService] Error setting up categories:', error);
+        }
+    },
+
+    /**
      * Solicita permissões para notificações
      */
     async requestPermissions(): Promise<boolean> {
@@ -39,6 +67,11 @@ export const notificationService = {
         if (existingStatus !== 'granted') {
             const { status } = await Notifications.requestPermissionsAsync();
             finalStatus = status;
+        }
+
+        // Setup notification categories after permissions
+        if (finalStatus === 'granted') {
+            await this.setupNotificationCategories();
         }
 
         return finalStatus === 'granted';
@@ -76,26 +109,54 @@ export const notificationService = {
             [hours, minutes] = task.dueTime.split(':').map(Number);
         }
 
-        const dueDate = new Date(year, month - 1, day, hours, minutes);
+        // Create date in LOCAL timezone (not UTC)
+        // Using string format to ensure local timezone interpretation
+        const dateString = `${task.dueDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+        const dueDate = new Date(dateString);
         const now = new Date();
         const notificationIds: string[] = [];
+
+        // DEBUG: Log timezone info
+        console.log('[NotificationService] Scheduling notifications for task:', task.title);
+        console.log('[NotificationService] Task dueDate:', task.dueDate, 'dueTime:', task.dueTime);
+        console.log('[NotificationService] Date string:', dateString);
+        console.log('[NotificationService] Parsed date:', dueDate.toLocaleString('pt-BR'));
+        console.log('[NotificationService] Parsed date ISO:', dueDate.toISOString());
+        console.log('[NotificationService] Current time:', now.toLocaleString('pt-BR'));
+        console.log('[NotificationService] Current time ISO:', now.toISOString());
+        console.log('[NotificationService] Timezone offset (minutes):', now.getTimezoneOffset());
+        console.log('[NotificationService] Time until due (hours):', (dueDate.getTime() - now.getTime()) / 1000 / 60 / 60);
 
         // Validations
         if (isNaN(dueDate.getTime())) return [];
 
         // Helper to schedule
         const schedule = async (triggerDate: Date, title: string, body: string) => {
-            if (triggerDate <= now) return; // Don't schedule in past
+            if (triggerDate <= now) {
+                console.log('[NotificationService] Skipping past notification:', title, 'trigger:', triggerDate.toLocaleString('pt-BR'));
+                return; // Don't schedule in past
+            }
 
             try {
+                const secondsUntilTrigger = Math.floor((triggerDate.getTime() - now.getTime()) / 1000);
+
+                console.log('[NotificationService] Scheduling:', title, 'in', secondsUntilTrigger, 'seconds');
+
                 const id = await Notifications.scheduleNotificationAsync({
                     content: {
                         title,
                         body,
                         sound: true,
-                        data: { taskId: task.id },
+                        data: {
+                            taskId: task.id,
+                            taskTitle: task.title,
+                        },
+                        categoryIdentifier: 'task-notification', // Enable action buttons
                     },
-                    trigger: triggerDate as any,
+                    trigger: {
+                        seconds: secondsUntilTrigger,
+                        channelId: 'default',
+                    },
                 });
                 notificationIds.push(id);
             } catch (error) {

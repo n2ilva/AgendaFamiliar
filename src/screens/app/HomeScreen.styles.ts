@@ -13,6 +13,7 @@ export const createStyles = (colors: any) =>
             gap: spacing.md,
         },
         filterContainer: {
+            marginTop: spacing.md,
             paddingBottom: spacing.sm,
         },
         filterContent: {

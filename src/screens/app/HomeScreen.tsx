@@ -137,13 +137,13 @@ export default function HomeScreen({ navigation }: any) {
       // 1. Status Filter
       if (selectedStatus === 'completed') {
         if (!t.completed) return false;
-        // Only show completed tasks from last 31 days
+        // Only show completed tasks from last 7 days
         if (t.updatedAt) {
-          const thirtyOneDaysAgo = new Date();
-          thirtyOneDaysAgo.setDate(thirtyOneDaysAgo.getDate() - 31);
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
           const updatedDate = t.updatedAt.split('T')[0];
-          const thirtyOneDaysAgoStr = thirtyOneDaysAgo.toISOString().split('T')[0];
-          if (updatedDate < thirtyOneDaysAgoStr) return false;
+          const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+          if (updatedDate < sevenDaysAgoStr) return false;
         }
       } else if (selectedStatus === 'overdue') {
         if (t.completed) return false;
@@ -176,17 +176,17 @@ export default function HomeScreen({ navigation }: any) {
 
   // Calculate counts for status buttons
   const todayStr = new Date().toISOString().split('T')[0];
-  const thirtyOneDaysAgo = new Date();
-  thirtyOneDaysAgo.setDate(thirtyOneDaysAgo.getDate() - 31);
-  const thirtyOneDaysAgoStr = thirtyOneDaysAgo.toISOString().split('T')[0];
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
 
-  // Completed: only tasks completed in the last 31 days
+  // Completed: only tasks completed in the last 7 days
   const completedCount = tasks.filter((t) => {
     if (!t.completed || t.deletedAt) return false;
-    // Check if task was completed in the last 31 days
+    // Check if task was completed in the last 7 days
     if (t.updatedAt) {
       const updatedDate = t.updatedAt.split('T')[0];
-      return updatedDate >= thirtyOneDaysAgoStr;
+      return updatedDate >= sevenDaysAgoStr;
     }
     return true; // Include if no updatedAt (legacy tasks)
   }).length;

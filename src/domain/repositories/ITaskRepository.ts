@@ -39,4 +39,12 @@ export interface ITaskRepository {
    * @returns Unsubscribe function
    */
   subscribe(familyId: string, callback: (tasks: Task[]) => void): () => void;
+
+  /**
+   * Gets old completed tasks for cleanup
+   * @param familyId - Family ID
+   * @param beforeDate - ISO date string - tasks completed before this date
+   * @returns Array of old completed tasks
+   */
+  getOldCompletedTasks(familyId: string, beforeDate: string): Promise<Task[]>;
 }

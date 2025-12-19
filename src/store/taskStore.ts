@@ -42,6 +42,35 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       return () => { };
     }
 
+    // Clean up old completed tasks (older than 7 days)
+    // TEMPORARILY DISABLED: Requires proper Firestore permissions
+    const cleanupOldCompletedTasks = async () => {
+      if (!user.familyId) return; // Skip if no familyId
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+
+      try {
+        const tasksToDelete = await taskService.getOldCompletedTasks(user.familyId, sevenDaysAgoStr);
+
+        for (const task of tasksToDelete) {
+          console.log(`[TaskStore] Auto-deleting old completed task: ${task.id} (completed: ${task.updatedAt})`);
+          await taskService.deleteTask(task.id);
+        }
+
+        if (tasksToDelete.length > 0) {
+          console.log(`[TaskStore] Cleaned up ${tasksToDelete.length} old completed tasks`);
+        }
+      } catch (error) {
+        console.error('[TaskStore] Error cleaning up old completed tasks:', error);
+      }
+    };
+
+    // Run cleanup on initialize
+    // TODO: Re-enable after fixing Firestore permissions
+    // cleanupOldCompletedTasks();
+
     const unsubscribe = taskService.subscribeToTasks(user.familyId, (firestoreTasks) => {
       const state = get();
       const currentUser = useUserStore.getState().user;
