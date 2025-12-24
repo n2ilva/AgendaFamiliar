@@ -1,0 +1,32 @@
+module.exports = {
+    preset: 'ts-jest',
+    testEnvironment: 'node',
+    moduleNameMapper: {
+        '^@src/(.*)$': '<rootDir>/src/$1',
+        '^@components/(.*)$': '<rootDir>/src/components/$1',
+        '^@screens/(.*)$': '<rootDir>/src/screens/$1',
+        '^@navigation/(.*)$': '<rootDir>/src/navigation/$1',
+        '^@store/(.*)$': '<rootDir>/src/store/$1',
+        '^@hooks/(.*)$': '<rootDir>/src/hooks/$1',
+        '^@utils/(.*)$': '<rootDir>/src/utils/$1',
+        '^@constants/(.*)$': '<rootDir>/src/constants/$1',
+        '^@types$': '<rootDir>/src/types/index.ts',
+        '^@domain/(.*)$': '<rootDir>/src/domain/$1',
+        // Mock native modules
+        '^expo-notifications$': '<rootDir>/src/__mocks__/expo-notifications.ts',
+        '^react-native$': '<rootDir>/src/__mocks__/react-native.ts',
+        '^@react-native-async-storage/async-storage$': '<rootDir>/src/__mocks__/async-storage.ts',
+    },
+    testMatch: ['**/__tests__/**/*.test.ts'],
+    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+    transformIgnorePatterns: [
+        'node_modules/(?!(expo|@expo|expo-modules-core|firebase|@firebase|zustand)/)',
+    ],
+    setupFilesAfterEnv: [],
+    collectCoverageFrom: [
+        'src/**/*.{ts,tsx}',
+        '!src/**/*.d.ts',
+        '!src/__tests__/**',
+        '!src/__mocks__/**',
+    ],
+};

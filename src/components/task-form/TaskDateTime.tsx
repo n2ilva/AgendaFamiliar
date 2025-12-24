@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '@hooks/useThemeColors';
-import { spacing, fontSize } from '@styles/spacing';
+import { fontSize, spacing } from '@styles/spacing';
 import { formatDate } from '@utils/dateUtils';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+// Only import DateTimePicker for native platforms
+let DateTimePicker: any = null;
+if (Platform.OS !== 'web') {
+  DateTimePicker = require('@react-native-community/datetimepicker').default;
+}
 
 interface TaskDateTimeProps {
   dueDate: Date;
@@ -17,6 +22,7 @@ interface TaskDateTimeProps {
 /**
  * Component for date and time selection
  * Handles platform-specific date/time pickers
+ * Uses native inputs on web, DateTimePicker on mobile
  */
 export const TaskDateTime: React.FC<TaskDateTimeProps> = ({
   dueDate,
@@ -51,6 +57,99 @@ export const TaskDateTime: React.FC<TaskDateTimeProps> = ({
     onTimeChange(null);
   };
 
+  // Format date as YYYY-MM-DD for web input
+  const formatDateForInput = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Format time as HH:MM for web input
+  const formatTimeForInput = (time: Date | null) => {
+    if (!time) return '';
+    const hours = String(time.getHours()).padStart(2, '0');
+    const minutes = String(time.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  // Handle web date input
+  const handleWebDateChange = (value: string) => {
+    if (value) {
+      const [year, month, day] = value.split('-').map(Number);
+      const newDate = new Date(year, month - 1, day);
+      onDateChange(newDate);
+    }
+  };
+
+  // Handle web time input
+  const handleWebTimeChange = (value: string) => {
+    if (value) {
+      const [hours, minutes] = value.split(':').map(Number);
+      const newTime = new Date();
+      newTime.setHours(hours, minutes, 0, 0);
+      onTimeChange(newTime);
+    } else {
+      onTimeChange(null);
+    }
+  };
+
+  // Web version with native HTML inputs
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.section}>
+        <Text style={[styles.label, { color: colors.text }]}>{t('tasks.due_date')} *</Text>
+        <View style={[styles.dateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+          <input
+            type="date"
+            value={formatDateForInput(dueDate)}
+            onChange={(e) => handleWebDateChange(e.target.value)}
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: colors.text,
+              fontSize: 16,
+              outline: 'none',
+              cursor: 'pointer',
+            }}
+          />
+        </View>
+
+        <Text style={[styles.label, { color: colors.text }]}>{t('tasks.due_time')} ({t('common.optional', 'Opcional')})</Text>
+        <View style={styles.timeRow}>
+          <View style={[styles.dateButton, styles.timeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Ionicons name="time-outline" size={20} color={colors.primary} />
+            <input
+              type="time"
+              value={formatTimeForInput(dueTime)}
+              onChange={(e) => handleWebTimeChange(e.target.value)}
+              style={{
+                flex: 1,
+                marginLeft: 8,
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: colors.text,
+                fontSize: 16,
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            />
+          </View>
+
+          {dueTime && (
+            <TouchableOpacity onPress={clearTime} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={24} color={colors.danger} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // Native version with DateTimePicker
   return (
     <View style={styles.section}>
       <Text style={[styles.label, { color: colors.text }]}>{t('tasks.due_date')} *</Text>
@@ -64,7 +163,7 @@ export const TaskDateTime: React.FC<TaskDateTimeProps> = ({
         </Text>
       </TouchableOpacity>
 
-      {showDatePicker && (
+      {showDatePicker && DateTimePicker && (
         <DateTimePicker
           value={dueDate}
           mode="date"
@@ -94,7 +193,7 @@ export const TaskDateTime: React.FC<TaskDateTimeProps> = ({
         )}
       </View>
 
-      {showTimePicker && (
+      {showTimePicker && DateTimePicker && (
         <DateTimePicker
           value={dueTime || new Date()}
           mode="time"

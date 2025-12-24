@@ -1,11 +1,10 @@
-import { create } from 'zustand';
-import type { Task } from '@types';
-import { notificationService, taskService, familyService } from '@src/firebase';
-import { useUserStore } from '@store/userStore';
-import { Alert } from 'react-native';
 import { RecurrenceCalculator } from '@domain/services/RecurrenceCalculator';
-import { RECURRENCE_TYPES } from '@constants/task';
-import { filterVisibleTasks, convertTaskToPrivate, convertTaskToPublic } from '@utils/taskPermissions';
+import { familyService, notificationService, taskService } from '@src/firebase';
+import { useUserStore } from '@store/userStore';
+import type { Task } from '@types';
+import { convertTaskToPrivate, convertTaskToPublic, filterVisibleTasks } from '@utils/taskPermissions';
+import { Alert } from 'react-native';
+import { create } from 'zustand';
 
 interface TaskStore {
   tasks: Task[];
@@ -71,7 +70,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // TODO: Re-enable after fixing Firestore permissions
     // cleanupOldCompletedTasks();
 
-    const unsubscribe = taskService.subscribeToTasks(user.familyId, (firestoreTasks) => {
+    const unsubscribe = taskService.subscribeToTasks(user.familyId, async (firestoreTasks) => {
       const state = get();
       const currentUser = useUserStore.getState().user;
 
@@ -84,6 +83,15 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }));
 
       set({ tasks: mergedTasks, isLoading: false });
+
+      // Reschedule notifications for all tasks on first load
+      // This ensures notifications persist even after app/device restart
+      const isFirstLoad = Object.keys(state.localNotificationMap).length === 0;
+      if (isFirstLoad && visibleTasks.length > 0) {
+        console.log('[TaskStore] First load - rescheduling all notifications');
+        const newNotificationMap = await notificationService.rescheduleAllNotifications(visibleTasks);
+        set({ localNotificationMap: newNotificationMap });
+      }
     });
     return unsubscribe;
   },
@@ -308,10 +316,31 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         console.log('Handling recurring task');
 
         // Use RecurrenceCalculator for clean, testable logic
-        const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence);
+        const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence, task.weekDays);
 
         console.log('Current task date:', task.dueDate);
         console.log('Next date calculated:', formattedDate);
+
+        // Check if recurrence should end
+        if (task.recurrenceEndDate && formattedDate > task.recurrenceEndDate) {
+          console.log('Recurrence end date reached, stopping recurrence');
+          await notificationService.cancelTaskNotifications(task.notificationIds);
+
+          // Mark as completed and stop recurrence
+          await taskService.updateTask(id, {
+            completed: true,
+            recurrence: 'none',
+            recurrenceEndDate: undefined
+          });
+
+          set(state => ({
+            localNotificationMap: {
+              ...state.localNotificationMap,
+              [id]: []
+            }
+          }));
+          return;
+        }
 
         await notificationService.cancelTaskNotifications(task.notificationIds);
 
@@ -478,7 +507,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       Alert.alert('Aprovação Necessária', 'Pular tarefa requer aprovação.');
 
       // Use RecurrenceCalculator
-      const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence);
+      const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence, task.weekDays);
 
       familyService.createApprovalRequest({
         familyId: user!.familyId!,
@@ -496,7 +525,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     }
 
     // Use RecurrenceCalculator for clean, testable logic
-    const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence);
+    const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence, task.weekDays);
 
     console.log('Current task date:', task.dueDate);
     console.log('Next date calculated (skip):', formattedDate);

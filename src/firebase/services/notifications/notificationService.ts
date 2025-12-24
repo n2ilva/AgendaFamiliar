@@ -1,6 +1,7 @@
+import type { Task } from '@types';
+import { createBrasiliaDate, formatBrasiliaDateTime, secondsUntilDate } from '@utils/dateUtils';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import type { Task } from '@types';
 
 // Configure default behavior
 Notifications.setNotificationHandler({
@@ -53,11 +54,17 @@ export const notificationService = {
      */
     async requestPermissions(): Promise<boolean> {
         if (Platform.OS === 'android') {
+            // Create notification channel with high importance for background notifications
             await Notifications.setNotificationChannelAsync('default', {
-                name: 'default',
+                name: 'Notificações de Tarefas',
+                description: 'Lembretes de tarefas e alertas',
                 importance: Notifications.AndroidImportance.MAX,
                 vibrationPattern: [0, 250, 250, 250],
-                lightColor: '#FF231F7C',
+                lightColor: '#5271FF',
+                enableVibrate: true,
+                enableLights: true,
+                showBadge: true,
+                bypassDnd: true, // Bypass Do Not Disturb
             });
         }
 
@@ -98,34 +105,17 @@ export const notificationService = {
             return [];
         }
 
-        // Parse due date and time
-        const [year, month, day] = task.dueDate.split('-').map(Number);
-
-        // Default to 9 AM if no time specified, or use specified time
-        let hours = 9;
-        let minutes = 0;
-
-        if (task.dueTime) {
-            [hours, minutes] = task.dueTime.split(':').map(Number);
-        }
-
-        // Create date in LOCAL timezone (not UTC)
-        // Using string format to ensure local timezone interpretation
-        const dateString = `${task.dueDate}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
-        const dueDate = new Date(dateString);
+        // Create due date using Brasilia timezone
+        const dueDate = createBrasiliaDate(task.dueDate, task.dueTime || undefined);
         const now = new Date();
         const notificationIds: string[] = [];
 
         // DEBUG: Log timezone info
         console.log('[NotificationService] Scheduling notifications for task:', task.title);
         console.log('[NotificationService] Task dueDate:', task.dueDate, 'dueTime:', task.dueTime);
-        console.log('[NotificationService] Date string:', dateString);
-        console.log('[NotificationService] Parsed date:', dueDate.toLocaleString('pt-BR'));
-        console.log('[NotificationService] Parsed date ISO:', dueDate.toISOString());
-        console.log('[NotificationService] Current time:', now.toLocaleString('pt-BR'));
-        console.log('[NotificationService] Current time ISO:', now.toISOString());
-        console.log('[NotificationService] Timezone offset (minutes):', now.getTimezoneOffset());
-        console.log('[NotificationService] Time until due (hours):', (dueDate.getTime() - now.getTime()) / 1000 / 60 / 60);
+        console.log('[NotificationService] Parsed date (Brasilia):', formatBrasiliaDateTime(dueDate));
+        console.log('[NotificationService] Current time (Brasilia):', formatBrasiliaDateTime(now));
+        console.log('[NotificationService] Time until due (seconds):', secondsUntilDate(dueDate));
 
         // Validations
         if (isNaN(dueDate.getTime())) return [];
@@ -147,6 +137,7 @@ export const notificationService = {
                         title,
                         body,
                         sound: true,
+                        priority: Notifications.AndroidNotificationPriority.MAX,
                         data: {
                             taskId: task.id,
                             taskTitle: task.title,
@@ -154,6 +145,7 @@ export const notificationService = {
                         categoryIdentifier: 'task-notification', // Enable action buttons
                     },
                     trigger: {
+                        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
                         seconds: secondsUntilTrigger,
                         channelId: 'default',
                     },
@@ -212,6 +204,61 @@ export const notificationService = {
      */
     async cancelAll(): Promise<void> {
         await Notifications.cancelAllScheduledNotificationsAsync();
+    },
+
+    /**
+     * Retorna todas as notificações agendadas (para debug)
+     */
+    async getScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {
+        return await Notifications.getAllScheduledNotificationsAsync();
+    },
+
+    /**
+     * Reagenda notificações para todas as tarefas pendentes
+     * Deve ser chamado quando o app inicia para garantir que as notificações existam
+     */
+    async rescheduleAllNotifications(tasks: Task[]): Promise<Record<string, string[]>> {
+        // Skip on web
+        if (Platform.OS === 'web') {
+            return {};
+        }
+
+        console.log('[NotificationService] Rescheduling notifications for', tasks.length, 'tasks');
+
+        // First, cancel all existing notifications to avoid duplicates
+        await this.cancelAll();
+
+        const notificationMap: Record<string, string[]> = {};
+
+        for (const task of tasks) {
+            // Skip completed non-recurring tasks
+            if (task.completed && (!task.recurrence || task.recurrence === 'none')) {
+                continue;
+            }
+
+            // Skip deleted tasks
+            if (task.deletedAt) {
+                continue;
+            }
+
+            try {
+                const ids = await this.scheduleTaskNotifications(task);
+                if (ids.length > 0) {
+                    notificationMap[task.id] = ids;
+                    console.log('[NotificationService] Scheduled', ids.length, 'notifications for task:', task.title);
+                }
+            } catch (error) {
+                console.error('[NotificationService] Error scheduling notifications for task:', task.id, error);
+            }
+        }
+
+        console.log('[NotificationService] Total tasks with notifications:', Object.keys(notificationMap).length);
+
+        // Debug: Log all scheduled notifications
+        const scheduled = await this.getScheduledNotifications();
+        console.log('[NotificationService] Total scheduled notifications:', scheduled.length);
+
+        return notificationMap;
     }
 };
 

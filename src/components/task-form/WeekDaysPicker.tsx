@@ -1,0 +1,113 @@
+import { useThemeColors } from '@hooks/useThemeColors';
+import { fontSize, spacing } from '@styles/spacing';
+import type { WeekDay } from '@types';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+interface WeekDaysPickerProps {
+    selectedDays: WeekDay[];
+    onDaysChange: (days: WeekDay[]) => void;
+}
+
+// Days of week in Portuguese (short)
+const WEEK_DAYS: { day: WeekDay; label: string; fullLabel: string }[] = [
+    { day: 0, label: 'D', fullLabel: 'Dom' },
+    { day: 1, label: 'S', fullLabel: 'Seg' },
+    { day: 2, label: 'T', fullLabel: 'Ter' },
+    { day: 3, label: 'Q', fullLabel: 'Qua' },
+    { day: 4, label: 'Q', fullLabel: 'Qui' },
+    { day: 5, label: 'S', fullLabel: 'Sex' },
+    { day: 6, label: 'S', fullLabel: 'Sáb' },
+];
+
+export function WeekDaysPicker({ selectedDays, onDaysChange }: WeekDaysPickerProps) {
+    const colors = useThemeColors();
+
+    const toggleDay = (day: WeekDay) => {
+        if (selectedDays.includes(day)) {
+            // Remove day if already selected (but keep at least one)
+            if (selectedDays.length > 1) {
+                onDaysChange(selectedDays.filter(d => d !== day));
+            }
+        } else {
+            // Add day
+            onDaysChange([...selectedDays, day].sort((a, b) => a - b));
+        }
+    };
+
+    return (
+        <View style={styles.container}>
+            <Text style={[styles.label, { color: colors.text }]}>Repetir nos dias:</Text>
+            <View style={styles.daysRow}>
+                {WEEK_DAYS.map(({ day, label, fullLabel }) => {
+                    const isSelected = selectedDays.includes(day);
+                    return (
+                        <TouchableOpacity
+                            key={day}
+                            style={[
+                                styles.dayButton,
+                                {
+                                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                                    borderColor: isSelected ? colors.primary : colors.border,
+                                },
+                            ]}
+                            onPress={() => toggleDay(day)}
+                            activeOpacity={0.7}
+                        >
+                            <Text
+                                style={[
+                                    styles.dayText,
+                                    { color: isSelected ? '#FFF' : colors.text },
+                                ]}
+                            >
+                                {label}
+                            </Text>
+                            <Text
+                                style={[
+                                    styles.dayFullText,
+                                    { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.textSecondary },
+                                ]}
+                            >
+                                {fullLabel}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        marginTop: spacing.sm,
+    },
+    label: {
+        fontSize: fontSize.sm,
+        fontWeight: '500',
+        marginBottom: spacing.sm,
+    },
+    daysRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: spacing.xs,
+    },
+    dayButton: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.sm,
+        borderRadius: 8,
+        borderWidth: 1,
+    },
+    dayText: {
+        fontSize: fontSize.lg,
+        fontWeight: '600',
+    },
+    dayFullText: {
+        fontSize: fontSize.xs,
+        marginTop: 2,
+    },
+});
+
+export default WeekDaysPicker;

@@ -1,29 +1,32 @@
-import React, { useState, useMemo } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  Switch,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { useThemeColors } from '@hooks/useThemeColors';
-import { useTranslation } from 'react-i18next';
-import { useCategoryStore } from '@store/categoryStore';
-import { spacing, fontSize } from '@styles/spacing';
-import { getCategoryLabel, getCategoryColor, CATEGORY_OPTIONS } from '@utils/taskUtils';
-import type { RecurrenceType } from '@types';
+import { CreateCategoryModal } from '@components/CreateCategoryModal';
 import PickerModal from '@components/PickerModal';
-import { useTaskForm } from '@hooks/useTaskForm';
 import { TaskBasicInfo } from '@components/task-form/TaskBasicInfo';
 import { TaskDateTime } from '@components/task-form/TaskDateTime';
 import { TaskSubtasks } from '@components/task-form/TaskSubtasks';
+import { WeekDaysPicker } from '@components/task-form/WeekDaysPicker';
 import { RECURRENCE_LABELS } from '@constants/task';
-import { CreateCategoryModal } from '@components/CreateCategoryModal';
+import { Ionicons } from '@expo/vector-icons';
+import { useTaskForm } from '@hooks/useTaskForm';
+import { useThemeColors } from '@hooks/useThemeColors';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useCategoryStore } from '@store/categoryStore';
 import { useUserStore } from '@store/userStore';
+import { fontSize, spacing } from '@styles/spacing';
+import type { RecurrenceType } from '@types';
+import { getCategoryColor, getCategoryLabel } from '@utils/taskUtils';
+import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const getRecurrenceOptions = (t: any) => [
   { label: t('recurrence.none'), value: 'none' },
@@ -31,6 +34,7 @@ const getRecurrenceOptions = (t: any) => [
   { label: t('recurrence.weekly'), value: 'weekly' },
   { label: t('recurrence.monthly'), value: 'monthly' },
   { label: t('recurrence.yearly'), value: 'yearly' },
+  { label: t('recurrence.custom_weekly', { defaultValue: 'Personalizado' }), value: 'custom_weekly' },
 ];
 
 export default function AddEditScreen({ route, navigation }: any) {
@@ -44,6 +48,7 @@ export default function AddEditScreen({ route, navigation }: any) {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false);
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
 
   const {
     title,
@@ -62,6 +67,12 @@ export default function AddEditScreen({ route, navigation }: any) {
     setCategory,
     setRecurrence,
     setIsPrivate,
+    weekDays,
+    setWeekDays,
+    hasEndDate,
+    setHasEndDate,
+    recurrenceEndDate,
+    setRecurrenceEndDate,
     handleSave,
     addSubtask,
     removeSubtask,
@@ -149,6 +160,95 @@ export default function AddEditScreen({ route, navigation }: any) {
             </Text>
             <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
+
+          {/* Show WeekDaysPicker when custom_weekly is selected */}
+          {recurrence === 'custom_weekly' && (
+            <WeekDaysPicker
+              selectedDays={weekDays}
+              onDaysChange={setWeekDays}
+            />
+          )}
+
+          {/* Recurrence End Date */}
+          {recurrence !== 'none' && (
+            <View style={styles.endDateContainer}>
+              <View style={styles.endDateToggle}>
+                <View style={styles.endDateLeft}>
+                  <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+                  <Text style={[styles.endDateLabel, { color: colors.text }]}>
+                    Termina em
+                  </Text>
+                </View>
+                <Switch
+                  value={hasEndDate}
+                  onValueChange={(value) => {
+                    setHasEndDate(value);
+                    if (value && !recurrenceEndDate) {
+                      const defaultEnd = new Date();
+                      defaultEnd.setMonth(defaultEnd.getMonth() + 1);
+                      setRecurrenceEndDate(defaultEnd);
+                    }
+                  }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor="#FFF"
+                />
+              </View>
+              {hasEndDate && (
+                Platform.OS === 'web' ? (
+                  <View style={[styles.endDateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <input
+                      type="date"
+                      value={recurrenceEndDate
+                        ? `${recurrenceEndDate.getFullYear()}-${(recurrenceEndDate.getMonth() + 1).toString().padStart(2, '0')}-${recurrenceEndDate.getDate().toString().padStart(2, '0')}`
+                        : ''
+                      }
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          const [y, m, d] = e.target.value.split('-').map(Number);
+                          setRecurrenceEndDate(new Date(y, m - 1, d));
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: colors.text,
+                        fontSize: 16,
+                        outline: 'none',
+                        cursor: 'pointer',
+                      }}
+                    />
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.endDateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                    onPress={() => setShowEndDatePicker(true)}
+                  >
+                    <Text style={[styles.endDateText, { color: colors.text }]}>
+                      {recurrenceEndDate
+                        ? `${recurrenceEndDate.getDate().toString().padStart(2, '0')}/${(recurrenceEndDate.getMonth() + 1).toString().padStart(2, '0')}/${recurrenceEndDate.getFullYear()}`
+                        : 'Selecionar data'
+                      }
+                    </Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )
+              )}
+              {showEndDatePicker && Platform.OS !== 'web' && (
+                <DateTimePicker
+                  value={recurrenceEndDate || new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  minimumDate={new Date()}
+                  onChange={(event, date) => {
+                    setShowEndDatePicker(Platform.OS === 'ios');
+                    if (date) setRecurrenceEndDate(date);
+                  }}
+                />
+              )}
+            </View>
+          )}
         </View>
 
         {/* 6. Private Task Toggle - Last option, only show if user has a family */}
@@ -304,5 +404,37 @@ const makeStyles = (colors: any) =>
     },
     privateToggleDescription: {
       fontSize: fontSize.sm,
+    },
+    endDateContainer: {
+      marginTop: spacing.md,
+    },
+    endDateToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      padding: spacing.md,
+    },
+    endDateLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    endDateLabel: {
+      fontSize: fontSize.base,
+      fontWeight: '500',
+    },
+    endDateButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: spacing.md,
+      marginTop: spacing.sm,
+    },
+    endDateText: {
+      fontSize: fontSize.base,
     },
   });

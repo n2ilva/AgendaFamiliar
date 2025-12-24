@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Alert } from 'react-native';
-import type { Task, RecurrenceType, Subtask } from '@types';
 import { useTaskStore } from '@store/taskStore';
 import { useUserStore } from '@store/userStore';
+import type { RecurrenceType, Subtask, Task, WeekDay } from '@types';
+import { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 
 interface UseTaskFormProps {
   taskId?: string;
@@ -40,6 +40,9 @@ export const useTaskForm = ({ taskId, onSuccess }: UseTaskFormProps) => {
   const [recurrence, setRecurrence] = useState<RecurrenceType>('none');
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [weekDays, setWeekDays] = useState<WeekDay[]>([1, 3, 5]); // Default: Mon, Wed, Fri
+  const [hasEndDate, setHasEndDate] = useState(false);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Load existing task if editing
@@ -66,6 +69,12 @@ export const useTaskForm = ({ taskId, onSuccess }: UseTaskFormProps) => {
         setRecurrence(task.recurrence);
         setSubtasks(task.subtasks || []);
         setIsPrivate(task.isPrivate || false);
+        if (task.weekDays) setWeekDays(task.weekDays);
+        if (task.recurrenceEndDate) {
+          setHasEndDate(true);
+          const [y, m, d] = task.recurrenceEndDate.split('-').map(Number);
+          setRecurrenceEndDate(new Date(y, m - 1, d));
+        }
       }
     }
   }, [taskId, getTaskById]);
@@ -103,6 +112,10 @@ export const useTaskForm = ({ taskId, onSuccess }: UseTaskFormProps) => {
         familyId: user?.familyId || '',
         createdBy: user?.uid || '',
         isPrivate,
+        weekDays: recurrence === 'custom_weekly' ? weekDays : undefined,
+        recurrenceEndDate: (recurrence !== 'none' && hasEndDate && recurrenceEndDate)
+          ? `${recurrenceEndDate.getFullYear()}-${String(recurrenceEndDate.getMonth() + 1).padStart(2, '0')}-${String(recurrenceEndDate.getDate()).padStart(2, '0')}`
+          : undefined,
       };
 
       if (taskId) {
@@ -147,6 +160,9 @@ export const useTaskForm = ({ taskId, onSuccess }: UseTaskFormProps) => {
     recurrence,
     subtasks,
     isPrivate,
+    weekDays,
+    hasEndDate,
+    recurrenceEndDate,
     loading,
 
     // Setters
@@ -157,6 +173,9 @@ export const useTaskForm = ({ taskId, onSuccess }: UseTaskFormProps) => {
     setCategory,
     setRecurrence,
     setIsPrivate,
+    setWeekDays,
+    setHasEndDate,
+    setRecurrenceEndDate,
 
     // Actions
     handleSave,

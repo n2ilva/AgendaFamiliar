@@ -7,6 +7,7 @@ export const RECURRENCE_TYPES = {
   NONE: 'none',
   DAILY: 'daily',
   WEEKLY: 'weekly',
+  CUSTOM_WEEKLY: 'custom_weekly',
   MONTHLY: 'monthly',
   YEARLY: 'yearly',
 } as const;
@@ -15,6 +16,7 @@ export const RECURRENCE_LABELS: Record<RecurrenceType, string> = {
   none: 'Não repete',
   daily: 'Diariamente',
   weekly: 'Semanalmente',
+  custom_weekly: 'Personalizado',
   monthly: 'Mensalmente',
   yearly: 'Anualmente',
 };

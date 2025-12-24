@@ -1,28 +1,27 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import {
-  View,
-  FlatList,
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  RefreshControl,
-  Alert,
-  useWindowDimensions,
-  Platform,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { TabView, SceneMap, TabBar } from 'react-native-tab-view';
-import { useTranslation } from 'react-i18next';
-import { useTaskStore } from '@store/taskStore';
-import { useCategoryStore } from '@store/categoryStore';
-import { useUserStore } from '@store/userStore';
 import TaskItem from '@components/TaskItem';
-import { useThemeColors } from '@hooks/useThemeColors';
+import { Ionicons } from '@expo/vector-icons';
 import { useLoadingState } from '@hooks/useLoadingState';
-import { createStyles } from './HomeScreen.styles';
+import { useThemeColors } from '@hooks/useThemeColors';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCategoryStore } from '@store/categoryStore';
+import { useTaskStore } from '@store/taskStore';
+import { useUserStore } from '@store/userStore';
 import type { Task } from '@types';
-import { hexToRGBA } from '@utils/taskUtils';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Platform,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { SceneMap, TabBar, TabView } from 'react-native-tab-view';
+import { createStyles } from './HomeScreen.styles';
 
 export default function HomeScreen({ navigation }: any) {
   const { t } = useTranslation();
@@ -122,10 +121,19 @@ export default function HomeScreen({ navigation }: any) {
     );
   };
 
+  // Helper to get today's date in YYYY-MM-DD format using LOCAL timezone (not UTC)
+  const getTodayStr = useCallback(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
   // Get filtered tasks based on current tab
   const getFilteredTasks = useCallback((dateFilter: 'today' | 'upcoming') => {
     return tasks.filter((t) => {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getTodayStr();
 
       // 0. Exclude deleted tasks
       if (t.deletedAt) return false;
@@ -141,8 +149,11 @@ export default function HomeScreen({ navigation }: any) {
         if (t.updatedAt) {
           const sevenDaysAgo = new Date();
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          const sevenDaysAgoYear = sevenDaysAgo.getFullYear();
+          const sevenDaysAgoMonth = String(sevenDaysAgo.getMonth() + 1).padStart(2, '0');
+          const sevenDaysAgoDay = String(sevenDaysAgo.getDate()).padStart(2, '0');
+          const sevenDaysAgoStr = `${sevenDaysAgoYear}-${sevenDaysAgoMonth}-${sevenDaysAgoDay}`;
           const updatedDate = t.updatedAt.split('T')[0];
-          const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
           if (updatedDate < sevenDaysAgoStr) return false;
         }
       } else if (selectedStatus === 'overdue') {
@@ -156,12 +167,14 @@ export default function HomeScreen({ navigation }: any) {
       // 2. Category Filter
       if (selectedCategory && t.category !== selectedCategory) return false;
 
-      // 3. Date Filter
-      if (dateFilter === 'today') {
-        const isOverdue = t.dueDate < todayStr && !t.completed;
-        if (t.dueDate !== todayStr && !isOverdue) return false;
-      } else if (dateFilter === 'upcoming') {
-        if (t.dueDate <= todayStr) return false;
+      // 3. Date Filter - Skip for completed tasks (show all completed from last 7 days)
+      if (selectedStatus !== 'completed') {
+        if (dateFilter === 'today') {
+          const isOverdue = t.dueDate < todayStr && !t.completed;
+          if (t.dueDate !== todayStr && !isOverdue) return false;
+        } else if (dateFilter === 'upcoming') {
+          if (t.dueDate <= todayStr) return false;
+        }
       }
 
       return true;
@@ -169,16 +182,19 @@ export default function HomeScreen({ navigation }: any) {
       // Sort by date: nearest first
       return a.dueDate.localeCompare(b.dueDate);
     });
-  }, [tasks, selectedStatus, selectedCategory]);
+  }, [tasks, selectedStatus, selectedCategory, getTodayStr]);
 
   const todayTasks = useMemo(() => getFilteredTasks('today'), [getFilteredTasks]);
   const upcomingTasks = useMemo(() => getFilteredTasks('upcoming'), [getFilteredTasks]);
 
-  // Calculate counts for status buttons
-  const todayStr = new Date().toISOString().split('T')[0];
+  // Calculate counts for status buttons using LOCAL timezone
+  const todayStr = getTodayStr();
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+  const sevenDaysAgoYear = sevenDaysAgo.getFullYear();
+  const sevenDaysAgoMonth = String(sevenDaysAgo.getMonth() + 1).padStart(2, '0');
+  const sevenDaysAgoDay = String(sevenDaysAgo.getDate()).padStart(2, '0');
+  const sevenDaysAgoStr = `${sevenDaysAgoYear}-${sevenDaysAgoMonth}-${sevenDaysAgoDay}`;
 
   // Completed: only tasks completed in the last 7 days
   const completedCount = tasks.filter((t) => {

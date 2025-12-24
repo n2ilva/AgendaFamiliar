@@ -23,6 +23,13 @@ export default {
             },
             edgeToEdgeEnabled: true,
             predictiveBackGestureEnabled: false,
+            permissions: [
+                'android.permission.SCHEDULE_EXACT_ALARM',
+                'android.permission.USE_EXACT_ALARM',
+                'android.permission.RECEIVE_BOOT_COMPLETED',
+                'android.permission.VIBRATE',
+                'android.permission.POST_NOTIFICATIONS',
+            ],
         },
         web: {
             output: 'static',
@@ -39,6 +46,15 @@ export default {
                     dark: {
                         backgroundColor: '#000000',
                     },
+                },
+            ],
+            [
+                'expo-notifications',
+                {
+                    icon: './assets/adaptive-icon.png',
+                    color: '#5271FF',
+                    defaultChannel: 'default',
+                    sounds: [],
                 },
             ],
         ],

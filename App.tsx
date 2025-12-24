@@ -1,19 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
-import * as Notifications from 'expo-notifications';
 import { useThemeColors } from '@hooks/useThemeColors';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import RootNavigator from '@navigation/RootNavigator';
 import SplashScreen from '@screens/SplashScreen';
-import { useUserStore } from '@store/userStore';
-import { useTaskStore } from '@store/taskStore';
+import { auth, authService, notificationService } from '@src/firebase';
 import { useCategoryStore } from '@store/categoryStore';
-import { authService, auth, notificationService } from '@src/firebase';
-import type { User as FirebaseUser } from 'firebase/auth';
-import './src/config/i18n';
+import { useTaskStore } from '@store/taskStore';
+import { useUserStore } from '@store/userStore';
+import * as Notifications from 'expo-notifications';
+import { StatusBar } from 'expo-status-bar';
 import i18n from 'i18next';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import './src/config/i18n';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +55,19 @@ export default function App() {
     });
 
     // Request notification permissions
-    notificationService.requestPermissions();
+    const setupNotifications = async () => {
+      const granted = await notificationService.requestPermissions();
+      console.log('[App] Notification permissions:', granted ? 'granted' : 'denied');
+
+      if (!granted) {
+        console.warn('[App] Notifications will not work without permissions!');
+      }
+
+      // Debug: Check scheduled notifications
+      const scheduled = await notificationService.getScheduledNotifications();
+      console.log('[App] Currently scheduled notifications:', scheduled.length);
+    };
+    setupNotifications();
 
     return () => {
       console.log('[App] Cleaning up auth listener');

@@ -1,4 +1,5 @@
-export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type RecurrenceType = 'none' | 'daily' | 'weekly' | 'custom_weekly' | 'monthly' | 'yearly';
+export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // Dom=0, Seg=1, Ter=2, Qua=3, Qui=4, Sex=5, Sab=6
 
 export interface Subtask {
   id: string;
@@ -24,6 +25,8 @@ export interface Task {
   familyId?: string;
   createdBy?: string;
   isPrivate?: boolean; // Private tasks are only visible to the creator
+  weekDays?: WeekDay[]; // For custom_weekly recurrence - which days of week to repeat
+  recurrenceEndDate?: string; // YYYY-MM-DD - when recurrence ends (undefined = never)
 }
 
 export interface Category {
