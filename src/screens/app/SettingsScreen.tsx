@@ -1,11 +1,17 @@
 import PickerModal from '@components/PickerModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@hooks/useThemeColors';
+import {
+  GOOGLE_ANDROID_CLIENT_ID,
+  GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_WEB_CLIENT_ID
+} from '@src/config/googleAuth';
 import { authService, familyService, userService } from '@src/firebase';
 import firebase from '@src/firebase/config/firebase.config';
 import { useUserStore } from '@store/userStore';
 import { fontSize, fontWeight, spacing } from '@styles/spacing';
 import type { Family } from '@types';
+import { makeRedirectUri } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import * as Clipboard from 'expo-clipboard';
 import * as WebBrowser from 'expo-web-browser';
@@ -34,6 +40,21 @@ export default function SettingsScreen({ navigation }: any) {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [family, setFamily] = useState<Family | null>(null);
+  const [isGoogleLinked, setIsGoogleLinked] = useState(false);
+
+  // Check if Google provider is linked to the current user
+  useEffect(() => {
+    const checkGoogleLinked = () => {
+      const currentUser = firebase.auth().currentUser;
+      if (currentUser) {
+        const hasGoogle = currentUser.providerData.some(
+          (provider) => provider?.providerId === 'google.com'
+        );
+        setIsGoogleLinked(hasGoogle);
+      }
+    };
+    checkGoogleLinked();
+  }, [user]);
 
   useEffect(() => {
     const fetchFamily = async () => {
@@ -52,10 +73,18 @@ export default function SettingsScreen({ navigation }: any) {
     }
   };
 
+  // Create proper redirect URI
+  const redirectUri = makeRedirectUri({
+    scheme: 'agendafamiliar',
+    path: 'auth',
+    preferLocalhost: false,
+  });
+
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '328256268071-stldq283utksgkddalb8ja0stc84c4gk.apps.googleusercontent.com', // Web Client ID (for Expo Go)
-    androidClientId: '328256268071-mudr2hodd4nio8tbebe70ba2l7i7ok3a.apps.googleusercontent.com', // Android Client ID (for APK/AAB builds)
-    iosClientId: '328256268071-stldq283utksgkddalb8ja0stc84c4gk.apps.googleusercontent.com', // iOS Client ID (create if needed)
+    clientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    redirectUri,
   });
 
   useEffect(() => {
@@ -74,12 +103,8 @@ export default function SettingsScreen({ navigation }: any) {
 
       if (!currentUser) throw new Error("No authenticated user");
 
+      // Link the Google credential to the existing account
       await currentUser.linkWithCredential(credential);
-
-      // Update profile with photo
-      // We can fetch the photo from the Google User info or just trust what firebase has merged?
-      // Typically linking doesn't auto-update the existing profile fields unless they are empty.
-      // Expectation: "Account linked, change profile photo to Google's".
 
       // Current User should now have providerData including google.
       const googleProvider = currentUser.providerData.find(p => p?.providerId === 'google.com');
@@ -90,14 +115,25 @@ export default function SettingsScreen({ navigation }: any) {
         setUser(updatedUser); // Update local store
       }
 
-      Alert.alert('Sucesso', 'Conta Google vinculada com sucesso!');
+      // Mark Google as linked
+      setIsGoogleLinked(true);
+
+      Alert.alert('Sucesso', 'Conta Google vinculada com sucesso! Agora você pode fazer login com email/senha ou com Google.');
 
     } catch (error: any) {
       console.error("Link error:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+
       if (error.code === 'auth/credential-already-in-use') {
         Alert.alert('Erro', 'Esta conta Google já está vinculada a outro usuário.');
+      } else if (error.code === 'auth/provider-already-linked') {
+        Alert.alert('Info', 'Esta conta Google já está vinculada à sua conta.');
+        setIsGoogleLinked(true);
+      } else if (error.code === 'auth/email-already-in-use') {
+        Alert.alert('Erro', 'O email desta conta Google já está em uso por outro usuário.');
       } else {
-        Alert.alert('Erro', 'Falha ao vincular conta Google.');
+        Alert.alert('Erro', `Falha ao vincular conta Google: ${error.message || 'Erro desconhecido'}`);
       }
     } finally {
       setIsLinking(false);
@@ -174,8 +210,8 @@ export default function SettingsScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Link Google Button */}
-        {!user?.photoURL?.includes('googleusercontent') && (
+        {/* Link Google Button - Only show if Google is not already linked */}
+        {!isGoogleLinked && (
           <TouchableOpacity
             style={styles.linkButton}
             onPress={() => promptAsync()}
@@ -184,6 +220,12 @@ export default function SettingsScreen({ navigation }: any) {
             <Ionicons name="logo-google" size={20} color={colors.primary} />
             <Text style={styles.linkText}>{isLinking ? t('settings.linking') : t('settings.link_google')}</Text>
           </TouchableOpacity>
+        )}
+        {isGoogleLinked && (
+          <View style={[styles.linkButton, { backgroundColor: colors.success + '20', borderColor: colors.success }]}>
+            <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+            <Text style={[styles.linkText, { color: colors.success }]}>Google vinculado</Text>
+          </View>
         )}
       </View>
 

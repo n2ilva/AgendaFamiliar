@@ -1,5 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@hooks/useThemeColors';
+import {
+  GOOGLE_ANDROID_CLIENT_ID,
+  GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_WEB_CLIENT_ID
+} from '@src/config/googleAuth';
 import { authService, userService } from '@src/firebase';
 import firebase from '@src/firebase/config/firebase.config';
 import { useUserStore } from '@store/userStore';
@@ -12,6 +17,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,37 +38,61 @@ export default function LoginScreen({ navigation }: any) {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const colors = useThemeColors();
 
-  // Create redirect URI for the app scheme
+  // Create proper redirect URI based on platform
   const redirectUri = makeRedirectUri({
     scheme: 'agendafamiliar',
     path: 'auth',
+    // For Expo Go, use the proxy
+    preferLocalhost: false,
   });
 
+  console.log('[LoginScreen] Platform:', Platform.OS);
+  console.log('[LoginScreen] Redirect URI:', redirectUri);
+
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '328256268071-stldq283utksgkddalb8ja0stc84c4gk.apps.googleusercontent.com', // Web Client ID (for Expo Go)
-    androidClientId: '328256268071-mudr2hodd4nio8tbebe70ba2l7i7ok3a.apps.googleusercontent.com', // Android Client ID (for APK/AAB builds)
-    iosClientId: '328256268071-stldq283utksgkddalb8ja0stc84c4gk.apps.googleusercontent.com', // iOS Client ID (create if needed)
+    clientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
     redirectUri,
   });
 
   useEffect(() => {
     if (response?.type === 'success') {
       const { id_token } = response.params;
+      console.log('[LoginScreen] Google auth success, processing token...');
       handleGoogleLogin(id_token);
+    } else if (response?.type === 'error') {
+      console.error('[LoginScreen] Google auth error:', response.error);
+      Alert.alert('Erro', `Falha na autenticação Google: ${response.error?.message || 'Erro desconhecido'}`);
+      setIsGoogleLoading(false);
     }
   }, [response]);
 
+  /**
+   * Handle Google Login
+   * This function handles both:
+   * 1. New users - creates a new account with Google
+   * 2. Existing users with email/password - links Google to their account
+   * 3. Existing users with Google - just logs them in
+   */
   const handleGoogleLogin = async (idToken: string) => {
     setIsGoogleLoading(true);
     try {
       const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+
+      // Try to sign in with the Google credential
       const userCredential = await firebase.auth().signInWithCredential(credential);
       const firebaseUser = userCredential.user;
 
       if (!firebaseUser) throw new Error("Falha na autenticação Google");
 
-      // Basic user info from Google
+      console.log('[LoginScreen] Firebase auth successful for:', firebaseUser.email);
+      console.log('[LoginScreen] Provider data:', firebaseUser.providerData.map(p => p?.providerId));
+      console.log('[LoginScreen] Is new user:', userCredential.additionalUserInfo?.isNewUser);
+
+      // Get Google photo URL
       const googlePhotoURL = firebaseUser.photoURL || undefined;
+
       let user = {
         uid: firebaseUser.uid,
         email: firebaseUser.email || '',
@@ -70,31 +100,51 @@ export default function LoginScreen({ navigation }: any) {
         photoURL: googlePhotoURL,
       };
 
-      // Fetch or Create Profile
-      const profile = await userService.getUserProfile(firebaseUser.uid);
-      if (profile) {
-        // Merge profile but prefer Google photo if profile doesn't have one
+      // Check if user profile exists in Firestore
+      const existingProfile = await userService.getUserProfile(firebaseUser.uid);
+
+      if (existingProfile) {
+        // Existing user - merge profile data
+        console.log('[LoginScreen] Existing profile found, merging...');
         user = {
           ...user,
-          ...profile,
-          // Keep Google photo if profile photo is missing
-          photoURL: profile.photoURL || googlePhotoURL,
+          ...existingProfile,
+          // Prefer Google photo if profile doesn't have one
+          photoURL: existingProfile.photoURL || googlePhotoURL,
         };
 
         // Update profile with Google photo if it was missing
-        if (!profile.photoURL && googlePhotoURL) {
+        if (!existingProfile.photoURL && googlePhotoURL) {
           await userService.updateUserProfile(firebaseUser.uid, { photoURL: googlePhotoURL });
         }
       } else {
-        // New Google User -> Create Profile
+        // New user - create profile
+        console.log('[LoginScreen] New user, creating profile...');
         await userService.createUserProfile(user);
       }
 
       setUser(user);
-      // Navigation is automatic via App.tsx but good to ensure
+      console.log('[LoginScreen] Login complete!');
+
     } catch (error: any) {
-      console.error("Google Login Error:", error);
-      Alert.alert('Erro no Login', translateAuthError(error));
+      console.error('[LoginScreen] Google Login Error:', error);
+      console.error('[LoginScreen] Error code:', error.code);
+      console.error('[LoginScreen] Error message:', error.message);
+
+      // Handle specific error cases
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        // User has an account with email/password, prompt to link
+        Alert.alert(
+          'Conta Existente',
+          'Já existe uma conta com este email. Faça login com email/senha e depois vincule sua conta Google nas Configurações.',
+          [{ text: 'OK' }]
+        );
+      } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        // User cancelled - don't show error
+        console.log('[LoginScreen] User cancelled Google auth');
+      } else {
+        Alert.alert('Erro no Login', translateAuthError(error));
+      }
     } finally {
       setIsGoogleLoading(false);
     }
