@@ -100,8 +100,16 @@ export const authService = {
      * Faz logout do usuário atual
      */
     async logout(): Promise<void> {
-        await auth.signOut();
-        useUserStore.getState().logout();
+        console.log('[AuthService] Starting logout...');
+        try {
+            await auth.signOut();
+            console.log('[AuthService] Firebase signOut successful');
+            useUserStore.getState().logout();
+            console.log('[AuthService] Store logout successful');
+        } catch (error) {
+            console.error('[AuthService] Logout error:', error);
+            throw error;
+        }
     },
 
     /**

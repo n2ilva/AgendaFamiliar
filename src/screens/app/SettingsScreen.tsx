@@ -19,6 +19,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
+  Platform,
   Image as RNImage,
   ScrollView,
   StyleSheet,
@@ -151,22 +152,38 @@ export default function SettingsScreen({ navigation }: any) {
     { label: 'English', value: 'en' },
   ];
 
-  const handleLogout = () => {
-    Alert.alert(t('settings.logout'), t('common.confirm_logout', 'Tem certeza que deseja sair da sua conta?'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('settings.logout'),
-        onPress: async () => {
-          try {
-            await authService.logout();
-            logout();
-          } catch (error) {
-            Alert.alert(t('common.error'), t('common.logout_error', 'Não foi possível fazer logout'));
-          }
+  const handleLogout = async () => {
+    const confirmMessage = t('common.confirm_logout', 'Tem certeza que deseja sair da sua conta?');
+
+    // Web doesn't support Alert.alert, use window.confirm instead
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(confirmMessage);
+      if (confirmed) {
+        try {
+          await authService.logout();
+          logout();
+        } catch (error) {
+          alert(t('common.logout_error', 'Não foi possível fazer logout'));
+        }
+      }
+    } else {
+      // Mobile uses Alert.alert
+      Alert.alert(t('settings.logout'), confirmMessage, [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('settings.logout'),
+          onPress: async () => {
+            try {
+              await authService.logout();
+              logout();
+            } catch (error) {
+              Alert.alert(t('common.error'), t('common.logout_error', 'Não foi possível fazer logout'));
+            }
+          },
+          style: 'destructive',
         },
-        style: 'destructive',
-      },
-    ]);
+      ]);
+    }
   };
 
   const getThemeLabel = () => {
