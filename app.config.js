@@ -67,12 +67,12 @@ export default {
                 projectId: 'd014eed9-1574-40c4-89ce-46ebf54f97c5',
             },
             // Firebase configuration - embedded at build time
-            firebaseApiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-            firebaseAuthDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-            firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-            firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-            firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-            firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+            firebaseApiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyBAMfd4iS6Ip2P9ePNk57DOgnCyGIMd_0U",
+            firebaseAuthDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "agendafamiliarkotlin.firebaseapp.com",
+            firebaseProjectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "agendafamiliarkotlin" ,
+            firebaseStorageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "agendafamiliarkotlin.firebasestorage.app",
+            firebaseMessagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "1038445694694",
+            firebaseAppId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:1038445694694:web:e7f47a89ac4742d84e3527",
         },
     },
 };
