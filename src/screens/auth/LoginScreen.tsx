@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@hooks/useThemeColors';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import {
   GOOGLE_IOS_CLIENT_ID,
   GOOGLE_WEB_CLIENT_ID
@@ -10,6 +9,7 @@ import firebase from '@src/firebase/config/firebase.config';
 import { useUserStore } from '@store/userStore';
 import { fontSize, spacing } from '@styles/spacing';
 import { translateAuthError } from '@utils/authErrors';
+import { configureGoogleSignin, GoogleSignin, statusCodes } from '@utils/googleSignin';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,7 +25,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Configure Google Sign-In
-GoogleSignin.configure({
+configureGoogleSignin({
   webClientId: GOOGLE_WEB_CLIENT_ID,
   iosClientId: GOOGLE_IOS_CLIENT_ID,
   offlineAccess: true,

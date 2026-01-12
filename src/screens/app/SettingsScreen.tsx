@@ -1,12 +1,12 @@
 import PickerModal from '@components/PickerModal';
 import { Ionicons } from '@expo/vector-icons';
 import { useThemeColors } from '@hooks/useThemeColors';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { authService, familyService, userService } from '@src/firebase';
 import firebase from '@src/firebase/config/firebase.config';
 import { useUserStore } from '@store/userStore';
 import { fontSize, fontWeight, spacing } from '@styles/spacing';
 import type { Family } from '@types';
+import { GoogleSignin, statusCodes } from '@utils/googleSignin';
 import * as Clipboard from 'expo-clipboard';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
