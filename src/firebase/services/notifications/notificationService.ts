@@ -4,15 +4,18 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 // Configure default behavior
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-    } as any),
-});
+// Configure default behavior
+if (Platform.OS !== 'web') {
+    Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+        } as any),
+    });
+}
 
 /**
  * Serviço de Notificações
@@ -25,6 +28,7 @@ export const notificationService = {
      * Configura categorias de notificação com ações
      */
     async setupNotificationCategories(): Promise<void> {
+        if (Platform.OS === 'web') return; // Notificações não suportadas na web
         try {
             // Define categoria de notificação com ações
             await Notifications.setNotificationCategoryAsync('task-notification', [
@@ -53,6 +57,8 @@ export const notificationService = {
      * Solicita permissões para notificações
      */
     async requestPermissions(): Promise<boolean> {
+        if (Platform.OS === 'web') return false;
+
         if (Platform.OS === 'android') {
             // Create notification channel with high importance for background notifications
             await Notifications.setNotificationChannelAsync('default', {
@@ -188,6 +194,7 @@ export const notificationService = {
      * Cancela notificações de uma tarefa
      */
     async cancelTaskNotifications(notificationIds?: string[]): Promise<void> {
+        if (Platform.OS === 'web') return;
         if (!notificationIds || notificationIds.length === 0) return;
 
         for (const id of notificationIds) {
@@ -203,6 +210,7 @@ export const notificationService = {
      * Cancela todas as notificações agendadas
      */
     async cancelAll(): Promise<void> {
+        if (Platform.OS === 'web') return;
         await Notifications.cancelAllScheduledNotificationsAsync();
     },
 
@@ -210,6 +218,7 @@ export const notificationService = {
      * Retorna todas as notificações agendadas (para debug)
      */
     async getScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {
+        if (Platform.OS === 'web') return [];
         return await Notifications.getAllScheduledNotificationsAsync();
     },
 

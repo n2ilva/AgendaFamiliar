@@ -242,7 +242,7 @@ export default function LoginScreen({ navigation }: any) {
               ) : (
                 <>
                   <Ionicons name="logo-google" size={20} color={colors.text} style={{ marginRight: 8 }} />
-                  <Text style={styles.googleButtonText}>Entrar com Google</Text>
+                  <Text style={[styles.googleButtonText, { color: colors.text }]}>Entrar com Google</Text>
                 </>
               )}
             </TouchableOpacity>
