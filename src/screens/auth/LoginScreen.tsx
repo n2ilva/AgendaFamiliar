@@ -48,19 +48,40 @@ export default function LoginScreen({ navigation }: any) {
     setIsGoogleLoading(true);
 
     try {
-      // Check for Play Services on Android
-      if (Platform.OS === 'android') {
-        await GoogleSignin.hasPlayServices();
-      }
+      // Lógica diferenciada para Web e Mobile
+      if (Platform.OS === 'web') {
+        // Fluxo WEB
+        console.log('[LoginScreen] Starting Web Google Auth...');
+        const provider = new firebase.auth.GoogleAuthProvider();
+        // Forçar seleção de conta para evitar login automático indesejado
+        provider.setCustomParameters({ prompt: 'select_account' });
+        
+        const result = await firebase.auth().signInWithPopup(provider);
+        const firebaseUser = result.user;
+        const credential = result.credential as firebase.auth.OAuthCredential;
+        const isNewUser = result.additionalUserInfo?.isNewUser;
 
-      // Start Google Sign-In flow
-      const { data } = await GoogleSignin.signIn();
+        if (firebaseUser) {
+           console.log('[LoginScreen] Web Google auth success:', firebaseUser.email);
+           await processUserLogin(firebaseUser, credential && credential.accessToken ? credential.accessToken : undefined);
+        }
 
-      if (data?.idToken) {
-        console.log('[LoginScreen] Native Google auth success, processing token...');
-        await handleFirebaseGoogleLogin(data.idToken);
       } else {
-        throw new Error('ID Token não recebido do Google');
+        // Fluxo MOBILE (Nativo)
+        // Check for Play Services on Android
+        if (Platform.OS === 'android') {
+          await GoogleSignin.hasPlayServices();
+        }
+
+        // Start Google Sign-In flow
+        const { data } = await GoogleSignin.signIn();
+
+        if (data?.idToken) {
+          console.log('[LoginScreen] Native Google auth success, processing token...');
+          await handleFirebaseGoogleLogin(data.idToken);
+        } else {
+          throw new Error('ID Token não recebido do Google');
+        }
       }
 
     } catch (error: any) {
@@ -80,23 +101,10 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   /**
-   * Firebase Logic for Google Login
+   * Process and save user data after successful Auth
+   * Shared logic for both Web and Mobile
    */
-  const handleFirebaseGoogleLogin = async (idToken: string) => {
-    setIsGoogleLoading(true);
-    try {
-      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
-
-      // Try to sign in with the Google credential
-      const userCredential = await firebase.auth().signInWithCredential(credential);
-      const firebaseUser = userCredential.user;
-
-      if (!firebaseUser) throw new Error("Falha na autenticação Google");
-
-      console.log('[LoginScreen] Firebase auth successful for:', firebaseUser.email);
-      console.log('[LoginScreen] Provider data:', firebaseUser.providerData.map(p => p?.providerId));
-      console.log('[LoginScreen] Is new user:', userCredential.additionalUserInfo?.isNewUser);
-
+  const processUserLogin = async (firebaseUser: firebase.User, googleAccessToken?: string) => {
       // Get Google photo URL
       const googlePhotoURL = firebaseUser.photoURL || undefined;
 
@@ -132,23 +140,33 @@ export default function LoginScreen({ navigation }: any) {
 
       setUser(user);
       console.log('[LoginScreen] Login complete!');
+  };
+
+  /**
+   * Firebase Logic for Google Login (Mobile only)
+   */
+  const handleFirebaseGoogleLogin = async (idToken: string) => {
+    setIsGoogleLoading(true);
+    try {
+      const credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+
+      // Try to sign in with the Google credential
+      const userCredential = await firebase.auth().signInWithCredential(credential);
+      const firebaseUser = userCredential.user;
+
+      if (!firebaseUser) throw new Error("Falha na autenticação Google");
+
+      await processUserLogin(firebaseUser);
 
     } catch (error: any) {
       console.error('[LoginScreen] Google Login Error:', error);
-      console.error('[LoginScreen] Error code:', error.code);
-      console.error('[LoginScreen] Error message:', error.message);
-
-      // Handle specific error cases
+      // Error handling logic
       if (error.code === 'auth/account-exists-with-different-credential') {
-        // User has an account with email/password, prompt to link
         Alert.alert(
           'Conta Existente',
           'Já existe uma conta com este email. Faça login com email/senha e depois vincule sua conta Google nas Configurações.',
           [{ text: 'OK' }]
         );
-      } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        // User cancelled - don't show error
-        console.log('[LoginScreen] User cancelled Google auth');
       } else {
         Alert.alert('Erro no Login', translateAuthError(error));
       }
