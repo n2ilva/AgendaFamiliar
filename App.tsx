@@ -1,7 +1,7 @@
 import { useThemeColors } from '@hooks/useThemeColors';
 import RootNavigator from '@navigation/RootNavigator';
 import SplashScreen from '@screens/SplashScreen';
-import { auth, authService, notificationService } from '@src/firebase';
+import { auth, authService, notificationService, taskService } from '@src/firebase';
 import { useCategoryStore } from '@store/categoryStore';
 import { useTaskStore } from '@store/taskStore';
 import { useUserStore } from '@store/userStore';
@@ -95,20 +95,77 @@ export default function App() {
 
       console.log('[App] Notification action:', actionIdentifier, 'for task:', taskId);
 
-      if (!taskId) return;
+      if (!taskId) {
+        console.warn('[App] Notification received without taskId');
+        return;
+      }
 
-      const { updateTask } = useTaskStore.getState();
+      console.log('[App] Action details:', { actionIdentifier, taskId, taskTitle });
+
+      const { toggleTask, skipTask, tasks } = useTaskStore.getState();
+      const currentUser = useUserStore.getState().user;
+
+      console.log('[App] Current State:', { 
+        hasTasks: tasks.length > 0, 
+        hasUser: !!currentUser,
+        userRole: currentUser?.role 
+      });
+
+      let task = tasks.find(t => t.id === taskId);
+
+      // Se a tarefa não estiver no store (ex: app acabou de abrir pela notificação)
+      // tentamos buscar diretamente do serviço
+      if (!task) {
+        console.log('[App] Task not found in store, fetching from service...');
+        try {
+          const fetchedTask = await taskService.getTaskById(taskId);
+          if (fetchedTask) {
+            task = fetchedTask;
+            console.log('[App] Task fetched successfully:', task.title);
+          }
+        } catch (error) {
+          console.error('[App] Error fetching task from service:', error);
+        }
+      }
+
+      if (!task) {
+        console.error('[App] Could not find task for notification action:', taskId);
+        return;
+      }
+
+      // IMPORTANTE: Se o usuário não estiver carregado no Store ainda, 
+      // precisamos esperar ou carregar. Em cold starts, o listener pode rodar antes do Auth.
+      if (!currentUser) {
+        console.log('[App] User not loaded yet, waiting 2 seconds for Auth...');
+        // Simplificação: esperar um pouco. O ideal seria subscrever ao userStore.
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const retryUser = useUserStore.getState().user;
+        if (!retryUser) {
+          console.error('[App] User still not loaded after wait. Action aborted.');
+          return;
+        }
+        console.log('[App] User loaded after wait:', retryUser.email);
+      }
 
       try {
         if (actionIdentifier === 'complete') {
-          // Mark task as completed
-          await updateTask(taskId, { completed: true });
-          console.log('[App] Task completed via notification:', taskTitle);
+          console.log('[App] Executing Complete action...');
+          // Mark task as completed (toggleTask handles recurrence)
+          if (!task.completed) {
+            await toggleTask(taskId);
+            console.log('[App] Task completed via notification successfully');
+          } else {
+            console.log('[App] Task followed by "complete" was already completed.');
+          }
         } else if (actionIdentifier === 'skip') {
+          console.log('[App] Executing Skip action...');
           // Skip task (for recurring tasks)
-          // This would need a skip function in taskStore
-          console.log('[App] Task skipped via notification:', taskTitle);
-          // TODO: Implement skip logic if needed
+          if (task.recurrence && task.recurrence !== 'none') {
+            await skipTask(taskId);
+            console.log('[App] Task skipped via notification successfully');
+          } else {
+            console.log('[App] Task followed by "skip" is not recurring.');
+          }
         }
       } catch (error) {
         console.error('[App] Error handling notification action:', error);

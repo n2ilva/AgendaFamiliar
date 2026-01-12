@@ -56,49 +56,59 @@ export default function HomeScreen({ navigation }: any) {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     
-    const scrollElement = (scrollRef.current as any)?._nativeRef?.current;
+    // Improved way to get the DOM node in React Native Web
+    const scrollNode = scrollRef.current;
+    if (!scrollNode) return;
+
+    // @ts-ignore - getScrollableNode exists in React Native Web
+    const scrollElement = scrollNode.getScrollableNode ? scrollNode.getScrollableNode() : null;
     if (!scrollElement) return;
 
+    let isDown = false;
+    let startXPos: number;
+    let scrollLeftPos: number;
+
     const handleMouseDown = (e: MouseEvent) => {
-      isDragging.current = true;
-      startX.current = e.pageX - scrollElement.offsetLeft;
-      scrollLeft.current = scrollElement.scrollLeft;
+      isDown = true;
+      scrollElement.classList.add('active');
+      startXPos = e.pageX - scrollElement.offsetLeft;
+      scrollLeftPos = scrollElement.scrollLeft;
       scrollElement.style.cursor = 'grabbing';
       scrollElement.style.userSelect = 'none';
     };
 
+    const handleMouseLeave = () => {
+      isDown = false;
+      scrollElement.style.cursor = 'grab';
+    };
+
     const handleMouseUp = () => {
-      isDragging.current = false;
+      isDown = false;
       scrollElement.style.cursor = 'grab';
       scrollElement.style.userSelect = 'auto';
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current) return;
+      if (!isDown) return;
       e.preventDefault();
       const x = e.pageX - scrollElement.offsetLeft;
-      const walk = (x - startX.current) * 1.5;
-      scrollElement.scrollLeft = scrollLeft.current - walk;
-    };
-
-    const handleMouseLeave = () => {
-      isDragging.current = false;
-      scrollElement.style.cursor = 'grab';
+      const walk = (x - startXPos) * 1; // Increased multiplier for responsiveness
+      scrollElement.scrollLeft = scrollLeftPos - walk;
     };
 
     scrollElement.style.cursor = 'grab';
     scrollElement.addEventListener('mousedown', handleMouseDown);
+    scrollElement.addEventListener('mouseleave', handleMouseLeave);
     scrollElement.addEventListener('mouseup', handleMouseUp);
     scrollElement.addEventListener('mousemove', handleMouseMove);
-    scrollElement.addEventListener('mouseleave', handleMouseLeave);
 
     return () => {
       scrollElement.removeEventListener('mousedown', handleMouseDown);
+      scrollElement.removeEventListener('mouseleave', handleMouseLeave);
       scrollElement.removeEventListener('mouseup', handleMouseUp);
       scrollElement.removeEventListener('mousemove', handleMouseMove);
-      scrollElement.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [categories]); // Re-run when categories change to ensure ref is ready
+  }, [loading, categories]); // Re-run when loading finishes or categories change
 
   useFocusEffect(
     useCallback(() => {

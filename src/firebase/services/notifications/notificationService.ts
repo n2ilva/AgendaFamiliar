@@ -32,14 +32,14 @@ export const notificationService = {
                     identifier: 'complete',
                     buttonTitle: '✓ Concluir',
                     options: {
-                        opensAppToForeground: false, // Não abre o app
+                        opensAppToForeground: true, // Abre o app para garantir execução
                     },
                 },
                 {
                     identifier: 'skip',
                     buttonTitle: '⏭ Pular',
                     options: {
-                        opensAppToForeground: false, // Não abre o app
+                        opensAppToForeground: true, // Abre o app para garantir execução
                     },
                 },
             ]);
