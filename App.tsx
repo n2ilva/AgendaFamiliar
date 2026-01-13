@@ -26,15 +26,21 @@ export default function App() {
   const initializeCategories = useCategoryStore((state) => state.initialize);
   const cleanupCategories = useCategoryStore((state) => state.cleanup);
 
-  // Responsividade WEB
-  const isLargeScreen = width >= 1024;
-  const webContainerStyle = Platform.OS === 'web' ? {
-    maxWidth: (isLargeScreen ? '70%' : '100%') as any,
-    width: '100%' as any,
-    alignSelf: 'center' as const,
-    minHeight: (isLargeScreen ? '100vh' : '100%') as any,
-    backgroundColor: colors.background,
-  } : { flex: 1 };
+  // Responsividade WEB: Usando state para garantir consistência na hidratação
+  const [webContainerStyle, setWebContainerStyle] = useState<any>({ flex: 1 });
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const isLargeScreen = width >= 1024;
+      setWebContainerStyle({
+        maxWidth: isLargeScreen ? '70%' : '100%',
+        width: '100%',
+        alignSelf: 'center',
+        minHeight: isLargeScreen ? '100vh' : '100%',
+        backgroundColor: colors.background,
+      });
+    }
+  }, [width, colors.background]);
 
   useEffect(() => {
     // Load saved preferences first
