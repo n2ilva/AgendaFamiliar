@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useThemeColors } from "@hooks/useThemeColors";
 import {
-    GOOGLE_IOS_CLIENT_ID,
-    GOOGLE_WEB_CLIENT_ID,
+  GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_WEB_CLIENT_ID,
 } from "@src/config/googleAuth";
 import { authService, userService } from "@src/firebase";
 import firebase from "@src/firebase/config/firebase.config";
@@ -10,35 +10,26 @@ import { useUserStore } from "@store/userStore";
 import { fontSize, spacing } from "@styles/spacing";
 import { translateAuthError } from "@utils/authErrors";
 import {
-    configureGoogleSignin,
-    GoogleSignin,
-    statusCodes,
+  configureGoogleSignin,
+  GoogleSignin,
+  statusCodes,
 } from "@utils/googleSignin";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// Configure Google Sign-In
-console.log("[LoginScreen] Configuring Google Sign-In with:", {
-  webClientId: GOOGLE_WEB_CLIENT_ID,
-  iosClientId: GOOGLE_IOS_CLIENT_ID,
-});
+// Configure Google Sign-In moved to component
 
-configureGoogleSignin({
-  webClientId: GOOGLE_WEB_CLIENT_ID,
-  iosClientId: GOOGLE_IOS_CLIENT_ID,
-  offlineAccess: true,
-});
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
@@ -48,6 +39,25 @@ export default function LoginScreen({ navigation }: any) {
   const setUser = useUserStore((state) => state.setUser);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const colors = useThemeColors();
+
+  useEffect(() => {
+    if (GOOGLE_WEB_CLIENT_ID || GOOGLE_IOS_CLIENT_ID) {
+      console.log("[LoginScreen] Configuring Google Sign-In with:", {
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+        iosClientId: GOOGLE_IOS_CLIENT_ID,
+      });
+
+      try {
+        configureGoogleSignin({
+          webClientId: GOOGLE_WEB_CLIENT_ID,
+          iosClientId: GOOGLE_IOS_CLIENT_ID,
+          offlineAccess: true,
+        });
+      } catch (error) {
+        console.error("[LoginScreen] Google Sign-In Configuration Error:", error);
+      }
+    }
+  }, []);
 
   /**
    * Main Google Login Handler
