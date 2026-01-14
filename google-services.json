@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "1038445694694-bdl4b0mhlm5abco57pt1hk0mfevskg1m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.natanael.agendafamiliar",
+            "certificate_hash": "87924099122a02346271a2cb97740f43bc8c49e8"
+          }
+        },
+        {
           "client_id": "1038445694694-urk08bl8efnnue8ujj75ofn0tfedbu8u.apps.googleusercontent.com",
           "client_type": 3
         }

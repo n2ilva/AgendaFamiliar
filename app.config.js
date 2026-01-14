@@ -10,7 +10,7 @@ export default {
         icon: 'assets/adaptive-icon.png',
         scheme: 'agendafamiliar',
         userInterfaceStyle: 'automatic',
-        newArchEnabled: false,
+        newArchEnabled: true,
         ios: {
             supportsTablet: true,
             bundleIdentifier: 'com.natanael.agendafamiliar',
