@@ -43,6 +43,9 @@ jobs:
       - name: Disable Jekyll processing
         run: touch dist/.nojekyll
 
+      - name: Add 404 fallback page
+        run: cp dist/+not-found.html dist/404.html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
