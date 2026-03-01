@@ -1,10 +1,14 @@
-import { RecurrenceCalculator } from '@domain/services/RecurrenceCalculator';
-import { familyService, notificationService, taskService } from '@src/firebase';
-import { useUserStore } from '@store/userStore';
-import type { Task } from '@types';
-import { showAlert } from '@utils/alertUtils';
-import { convertTaskToPrivate, convertTaskToPublic, filterVisibleTasks } from '@utils/taskPermissions';
-import { create } from 'zustand';
+import { RecurrenceCalculator } from "@domain/services/RecurrenceCalculator";
+import { familyService, notificationService, taskService } from "@src/firebase";
+import { useUserStore } from "@store/userStore";
+import type { Task } from "@types";
+import { showAlert } from "@utils/alertUtils";
+import {
+    convertTaskToPrivate,
+    convertTaskToPublic,
+    filterVisibleTasks,
+} from "@utils/taskPermissions";
+import { create } from "zustand";
 
 interface TaskStore {
   tasks: Task[];
@@ -38,7 +42,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     if (!user || !user.familyId) {
       set({ tasks: [], isLoading: false });
-      return () => { };
+      return () => {};
     }
 
     // Clean up old completed tasks (older than 7 days)
@@ -51,18 +55,28 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const sevenDaysAgoStr = sevenDaysAgo.toISOString();
 
       try {
-        const tasksToDelete = await taskService.getOldCompletedTasks(user.familyId, sevenDaysAgoStr);
+        const tasksToDelete = await taskService.getOldCompletedTasks(
+          user.familyId,
+          sevenDaysAgoStr,
+        );
 
         for (const task of tasksToDelete) {
-          console.log(`[TaskStore] Auto-deleting old completed task: ${task.id} (completed: ${task.updatedAt})`);
+          console.log(
+            `[TaskStore] Auto-deleting old completed task: ${task.id} (completed: ${task.updatedAt})`,
+          );
           await taskService.deleteTask(task.id);
         }
 
         if (tasksToDelete.length > 0) {
-          console.log(`[TaskStore] Cleaned up ${tasksToDelete.length} old completed tasks`);
+          console.log(
+            `[TaskStore] Cleaned up ${tasksToDelete.length} old completed tasks`,
+          );
         }
       } catch (error) {
-        console.error('[TaskStore] Error cleaning up old completed tasks:', error);
+        console.error(
+          "[TaskStore] Error cleaning up old completed tasks:",
+          error,
+        );
       }
     };
 
@@ -70,29 +84,36 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     // TODO: Re-enable after fixing Firestore permissions
     // cleanupOldCompletedTasks();
 
-    const unsubscribe = taskService.subscribeToTasks(user.familyId, async (firestoreTasks) => {
-      const state = get();
-      const currentUser = useUserStore.getState().user;
+    const unsubscribe = taskService.subscribeToTasks(
+      user.familyId,
+      async (firestoreTasks) => {
+        const state = get();
+        const currentUser = useUserStore.getState().user;
 
-      // Filter tasks to only include visible ones (respects private tasks)
-      const visibleTasks = filterVisibleTasks(firestoreTasks, currentUser);
+        // Filter tasks to only include visible ones (respects private tasks)
+        const visibleTasks = filterVisibleTasks(firestoreTasks, currentUser);
 
-      const mergedTasks = visibleTasks.map(t => ({
-        ...t,
-        notificationIds: state.localNotificationMap[t.id] || []
-      }));
+        const mergedTasks = visibleTasks.map((t) => ({
+          ...t,
+          notificationIds: state.localNotificationMap[t.id] || [],
+        }));
 
-      set({ tasks: mergedTasks, isLoading: false });
+        set({ tasks: mergedTasks, isLoading: false });
 
-      // Reschedule notifications for all tasks on first load
-      // This ensures notifications persist even after app/device restart
-      const isFirstLoad = Object.keys(state.localNotificationMap).length === 0;
-      if (isFirstLoad && visibleTasks.length > 0) {
-        console.log('[TaskStore] First load - rescheduling all notifications');
-        const newNotificationMap = await notificationService.rescheduleAllNotifications(visibleTasks);
-        set({ localNotificationMap: newNotificationMap });
-      }
-    });
+        // Reschedule notifications for all tasks on first load
+        // This ensures notifications persist even after app/device restart
+        const isFirstLoad =
+          Object.keys(state.localNotificationMap).length === 0;
+        if (isFirstLoad && visibleTasks.length > 0) {
+          console.log(
+            "[TaskStore] First load - rescheduling all notifications",
+          );
+          const newNotificationMap =
+            await notificationService.rescheduleAllNotifications(visibleTasks);
+          set({ localNotificationMap: newNotificationMap });
+        }
+      },
+    );
     return unsubscribe;
   },
 
@@ -103,27 +124,21 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     const fullTask = {
       ...task,
       familyId: user.familyId,
-      createdBy: user.uid
+      createdBy: user.uid,
     };
-
-    // 1. Schedule notifications (local only)
-    const notificationIds = await notificationService.scheduleTaskNotifications(fullTask);
-
-    set(state => ({
-      localNotificationMap: { ...state.localNotificationMap }
-    }));
 
     try {
       const createdTask = await taskService.createTask(fullTask);
 
-      // 3. Now schedule with REAL ID
-      const realNotificationIds = await notificationService.scheduleTaskNotifications(createdTask);
+      // Schedule notifications after persistence, using real task ID
+      const realNotificationIds =
+        await notificationService.scheduleTaskNotifications(createdTask);
 
-      set(state => ({
+      set((state) => ({
         localNotificationMap: {
           ...state.localNotificationMap,
-          [createdTask.id]: realNotificationIds
-        }
+          [createdTask.id]: realNotificationIds,
+        },
       }));
     } catch (error) {
       console.error("Failed to add task:", error);
@@ -132,7 +147,7 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   updateTask: async (id: string, updates: Partial<Task>) => {
     const user = useUserStore.getState().user;
-    const currentTask = get().tasks.find(t => t.id === id);
+    const currentTask = get().tasks.find((t) => t.id === id);
     if (!currentTask || !user) return;
 
     // Handle privacy change: public -> private
@@ -142,48 +157,59 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     if (updates.isPrivate === true && !currentTask.isPrivate) {
       // Converting public task to private: transfer ownership
       finalUpdates = convertTaskToPrivate(finalUpdates, user.uid);
-      console.log(`[TaskStore] Converting task ${id} to private, transferring ownership to ${user.uid}`);
+      console.log(
+        `[TaskStore] Converting task ${id} to private, transferring ownership to ${user.uid}`,
+      );
     } else if (updates.isPrivate === false && currentTask.isPrivate) {
       // Converting private task to public: keep current owner
       finalUpdates = convertTaskToPublic(finalUpdates);
-      console.log(`[TaskStore] Converting task ${id} to public, keeping owner ${currentTask.createdBy}`);
+      console.log(
+        `[TaskStore] Converting task ${id} to public, keeping owner ${currentTask.createdBy}`,
+      );
     }
 
     // RBAC: Check Permissions
-    if (user.role === 'dependent') {
+    if (user.role === "dependent") {
       showAlert(
-        'Aprovação Necessária',
-        'Como dependente, sua alteração precisa ser aprovada pelo administrador.'
+        "Aprovação Necessária",
+        "Como dependente, sua alteração precisa ser aprovada pelo administrador.",
       );
       familyService.createApprovalRequest({
         familyId: user.familyId!,
         taskId: id,
         requestedBy: user.uid,
         userName: user.displayName || user.email,
-        action: 'update',
-        data: finalUpdates
+        action: "update",
+        data: finalUpdates,
       });
       return;
     }
 
     try {
-      const needsReschedule = finalUpdates.dueDate || finalUpdates.dueTime || finalUpdates.title || finalUpdates.completed !== undefined;
+      const needsReschedule =
+        finalUpdates.dueDate ||
+        finalUpdates.dueTime ||
+        finalUpdates.title ||
+        finalUpdates.completed !== undefined;
 
       if (needsReschedule) {
-        await notificationService.cancelTaskNotifications(currentTask.notificationIds);
+        await notificationService.cancelTaskNotifications(
+          currentTask.notificationIds,
+        );
 
         const updatedTask = { ...currentTask, ...finalUpdates } as Task;
 
         let newIds: string[] = [];
         if (!updatedTask.completed) {
-          newIds = await notificationService.scheduleTaskNotifications(updatedTask);
+          newIds =
+            await notificationService.scheduleTaskNotifications(updatedTask);
         }
 
-        set(state => ({
+        set((state) => ({
           localNotificationMap: {
             ...state.localNotificationMap,
-            [id]: newIds
-          }
+            [id]: newIds,
+          },
         }));
       }
 
@@ -194,73 +220,73 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   deleteTask: async (id: string) => {
-    console.log('deleteTask called with id:', id);
+    console.log("deleteTask called with id:", id);
     const user = useUserStore.getState().user;
-    const task = get().tasks.find(t => t.id === id);
+    const task = get().tasks.find((t) => t.id === id);
 
-    console.log('User:', user?.uid, 'Task found:', !!task);
+    console.log("User:", user?.uid, "Task found:", !!task);
 
     if (!task || !user) {
-      console.log('Early return: task or user not found');
+      console.log("Early return: task or user not found");
       return;
     }
 
     // RBAC
-    if (user.role === 'dependent') {
+    if (user.role === "dependent") {
       showAlert(
-        'Aprovação Necessária',
-        'Solicitação de exclusão enviada ao administrador.'
+        "Aprovação Necessária",
+        "Solicitação de exclusão enviada ao administrador.",
       );
       familyService.createApprovalRequest({
         familyId: user.familyId!,
         taskId: id,
         requestedBy: user.uid,
         userName: user.displayName || user.email,
-        action: 'delete',
-        data: {}
+        action: "delete",
+        data: {},
       });
       return;
     }
 
-    console.log('Canceling notifications...');
+    console.log("Canceling notifications...");
     if (task.notificationIds) {
       await notificationService.cancelTaskNotifications(task.notificationIds);
     }
 
-    set(state => {
+    set((state) => {
       const newMap = { ...state.localNotificationMap };
       delete newMap[id];
       return { localNotificationMap: newMap };
     });
 
-    console.log('Calling taskService.deleteTask...');
+    console.log("Calling taskService.deleteTask...");
     await taskService.deleteTask(id);
-    console.log('Task deleted (soft delete)');
+    console.log("Task deleted (soft delete)");
   },
 
   toggleTask: async (id: string) => {
     try {
-      console.log('toggleTask called with id:', id);
+      console.log("toggleTask called with id:", id);
 
       // Check if already processing this task
       const state = get();
       if (state.toggleLock.has(id)) {
-        console.log('Task toggle already in progress, ignoring duplicate call');
+        console.log("Task toggle already in progress, ignoring duplicate call");
         return;
       }
 
       // Acquire lock
-      set(s => ({ toggleLock: new Set([...s.toggleLock, id]) }));
+      set((s) => ({ toggleLock: new Set([...s.toggleLock, id]) }));
 
       const user = useUserStore.getState().user;
-      const task = state.tasks.find(t => t.id === id);
+      const task = state.tasks.find((t) => t.id === id);
 
-      console.log('User:', user?.uid, 'Task found:', !!task);
+      console.log("User:", user?.uid, "Task found:", !!task);
 
       if (!task || !user) {
-        console.log('Early return: task or user not found');
+        console.log("Early return: task or user not found");
         // Release lock
-        set(s => {
+        set((s) => {
           const newLock = new Set(s.toggleLock);
           newLock.delete(id);
           return { toggleLock: newLock };
@@ -269,14 +295,14 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
 
       // RBAC
-      if (user.role === 'dependent') {
+      if (user.role === "dependent") {
         // Allow toggle? User said "conclude... needs approval".
         // So yes, verify role.
         showAlert(
-          'Aprovação Necessária',
-          'Solicitação de conclusão/alteração enviada ao administrador.'
+          "Aprovação Necessária",
+          "Solicitação de conclusão/alteração enviada ao administrador.",
         );
-        const action = !task.completed ? 'complete' : 'update'; // If completing, action is complete. If undoing, it's update?
+        const action = !task.completed ? "complete" : "update"; // If completing, action is complete. If undoing, it's update?
         // Actually, let's treat toggle as 'complete' request if completing, or 'update' if uncompleting.
         // Simplification: 'update' with { completed: !completed } data covers it.
         familyService.createApprovalRequest({
@@ -284,11 +310,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
           taskId: id,
           requestedBy: user.uid,
           userName: user.displayName || user.email,
-          action: 'update',
-          data: { completed: !task.completed }
+          action: "update",
+          data: { completed: !task.completed },
         });
         // Release lock
-        set(s => {
+        set((s) => {
           const newLock = new Set(s.toggleLock);
           newLock.delete(id);
           return { toggleLock: newLock };
@@ -297,13 +323,13 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       }
 
       const isCompleting = !task.completed;
-      console.log('isCompleting:', isCompleting);
+      console.log("isCompleting:", isCompleting);
 
       // CRITICAL: Don't reschedule deleted tasks
       if (task.deletedAt) {
-        console.log('Task is deleted, skipping toggle');
+        console.log("Task is deleted, skipping toggle");
         // Release lock
-        set(s => {
+        set((s) => {
           const newLock = new Set(s.toggleLock);
           newLock.delete(id);
           return { toggleLock: newLock };
@@ -313,31 +339,37 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
       // Handle recurrence
       if (isCompleting && RecurrenceCalculator.shouldRecur(task.recurrence)) {
-        console.log('Handling recurring task');
+        console.log("Handling recurring task");
 
         // Use RecurrenceCalculator for clean, testable logic
-        const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence, task.weekDays);
+        const formattedDate = RecurrenceCalculator.calculateNextDate(
+          task.dueDate,
+          task.recurrence,
+          task.weekDays,
+        );
 
-        console.log('Current task date:', task.dueDate);
-        console.log('Next date calculated:', formattedDate);
+        console.log("Current task date:", task.dueDate);
+        console.log("Next date calculated:", formattedDate);
 
         // Check if recurrence should end
         if (task.recurrenceEndDate && formattedDate > task.recurrenceEndDate) {
-          console.log('Recurrence end date reached, stopping recurrence');
-          await notificationService.cancelTaskNotifications(task.notificationIds);
+          console.log("Recurrence end date reached, stopping recurrence");
+          await notificationService.cancelTaskNotifications(
+            task.notificationIds,
+          );
 
           // Mark as completed and stop recurrence
           await taskService.updateTask(id, {
             completed: true,
-            recurrence: 'none',
-            recurrenceEndDate: undefined
+            recurrence: "none",
+            recurrenceEndDate: undefined,
           });
 
-          set(state => ({
+          set((state) => ({
             localNotificationMap: {
               ...state.localNotificationMap,
-              [id]: []
-            }
+              [id]: [],
+            },
           }));
           return;
         }
@@ -347,57 +379,63 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
         const updates = {
           dueDate: formattedDate,
           completed: false, // Ensure false
-          subtasks: task.subtasks.map(s => ({ ...s, completed: false })), // Reset subtasks
+          subtasks: task.subtasks,
         };
 
-        console.log('Updating recurring task with:', updates);
+        console.log("Updating recurring task with:", updates);
         await taskService.updateTask(id, updates);
-        console.log('Recurring task updated, new date:', formattedDate);
+        console.log("Recurring task updated, new date:", formattedDate);
 
-        const nextTaskState = { ...task, ...updates, updatedAt: new Date().toISOString() };
-        const newIds = await notificationService.scheduleTaskNotifications(nextTaskState);
+        const nextTaskState = {
+          ...task,
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        };
+        const newIds =
+          await notificationService.scheduleTaskNotifications(nextTaskState);
 
-        set(state => ({
+        set((state) => ({
           localNotificationMap: {
             ...state.localNotificationMap,
-            [id]: newIds
-          }
+            [id]: newIds,
+          },
         }));
-
       } else {
-        console.log('Handling non-recurring task toggle');
+        console.log("Handling non-recurring task toggle");
         await notificationService.cancelTaskNotifications(task.notificationIds);
 
-        console.log('Updating task with completed:', isCompleting);
+        console.log("Updating task with completed:", isCompleting);
         await taskService.updateTask(id, {
-          completed: isCompleting
+          completed: isCompleting,
         });
-        console.log('Task updated successfully');
+        console.log("Task updated successfully");
 
         if (!isCompleting) {
-          const newIds = await notificationService.scheduleTaskNotifications({ ...task, completed: false });
-          set(state => ({
+          const newIds = await notificationService.scheduleTaskNotifications({
+            ...task,
+            completed: false,
+          });
+          set((state) => ({
             localNotificationMap: {
               ...state.localNotificationMap,
-              [id]: newIds
-            }
+              [id]: newIds,
+            },
           }));
         }
       }
 
       // Release lock
-      set(s => {
+      set((s) => {
         const newLock = new Set(s.toggleLock);
         newLock.delete(id);
         return { toggleLock: newLock };
       });
-
     } catch (error) {
-      console.error('Error in toggleTask:', error);
-      showAlert('Erro', 'Não foi possível atualizar a tarefa');
+      console.error("Error in toggleTask:", error);
+      showAlert("Erro", "Não foi possível atualizar a tarefa");
 
       // Release lock on error
-      set(s => {
+      set((s) => {
         const newLock = new Set(s.toggleLock);
         newLock.delete(id);
         return { toggleLock: newLock };
@@ -414,22 +452,25 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
     const user = useUserStore.getState().user;
     const state = get();
-    const task = state.tasks.find(t => t.id === taskId);
+    const task = state.tasks.find((t) => t.id === taskId);
     if (!task || !user) return;
 
     const updatedSubtasks = task.subtasks.map((sub) =>
-      sub.id === subtaskId ? { ...sub, completed: !sub.completed } : sub
+      sub.id === subtaskId ? { ...sub, completed: !sub.completed } : sub,
     );
 
-    if (user.role === 'dependent') {
-      showAlert('Aprovação Necessária', 'Alteração de subtarefa enviada para aprovação.');
+    if (user.role === "dependent") {
+      showAlert(
+        "Aprovação Necessária",
+        "Alteração de subtarefa enviada para aprovação.",
+      );
       familyService.createApprovalRequest({
         familyId: user.familyId!,
         taskId: taskId,
         requestedBy: user.uid,
         userName: user.displayName || user.email,
-        action: 'update',
-        data: { subtasks: updatedSubtasks }
+        action: "update",
+        data: { subtasks: updatedSubtasks },
       });
       return;
     }
@@ -441,39 +482,50 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
       const isCompleting = true;
       let updates: Partial<Task> = { subtasks: updatedSubtasks };
 
-      if (task.recurrence && task.recurrence !== 'none') {
+      if (task.recurrence && task.recurrence !== "none") {
         const nextDate = new Date(task.dueDate);
         switch (task.recurrence) {
-          case 'daily': nextDate.setDate(nextDate.getDate() + 1); break;
-          case 'weekly': nextDate.setDate(nextDate.getDate() + 7); break;
-          case 'monthly': nextDate.setMonth(nextDate.getMonth() + 1); break;
-          case 'yearly': nextDate.setFullYear(nextDate.getFullYear() + 1); break;
+          case "daily":
+            nextDate.setDate(nextDate.getDate() + 1);
+            break;
+          case "weekly":
+            nextDate.setDate(nextDate.getDate() + 7);
+            break;
+          case "monthly":
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            break;
+          case "yearly":
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            break;
         }
         const year = nextDate.getFullYear();
-        const month = String(nextDate.getMonth() + 1).padStart(2, '0');
-        const day = String(nextDate.getDate()).padStart(2, '0');
+        const month = String(nextDate.getMonth() + 1).padStart(2, "0");
+        const day = String(nextDate.getDate()).padStart(2, "0");
         const formattedDate = `${year}-${month}-${day}`;
 
         await notificationService.cancelTaskNotifications(task.notificationIds);
 
         updates.dueDate = formattedDate;
         updates.completed = false;
-        updates.subtasks = updatedSubtasks.map(s => ({ ...s, completed: false }));
+        updates.subtasks = updatedSubtasks;
 
         await taskService.updateTask(taskId, updates);
 
         const nextTaskState = { ...task, ...updates } as Task;
-        const newIds = await notificationService.scheduleTaskNotifications(nextTaskState);
+        const newIds =
+          await notificationService.scheduleTaskNotifications(nextTaskState);
 
-        set(state => ({
-          localNotificationMap: { ...state.localNotificationMap, [taskId]: newIds }
+        set((state) => ({
+          localNotificationMap: {
+            ...state.localNotificationMap,
+            [taskId]: newIds,
+          },
         }));
-
       } else {
         await notificationService.cancelTaskNotifications(task.notificationIds);
         updates.completed = true;
         await taskService.updateTask(taskId, updates);
-        set(state => {
+        set((state) => {
           const newMap = { ...state.localNotificationMap };
           delete newMap[taskId];
           return { localNotificationMap: newMap };
@@ -485,92 +537,104 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   },
 
   skipTask: async (id: string) => {
-    console.log('skipTask called with id:', id);
+    console.log("skipTask called with id:", id);
     const user = useUserStore.getState().user;
-    const task = get().tasks.find(t => t.id === id);
+    const task = get().tasks.find((t) => t.id === id);
 
-    console.log('Task found:', !!task, 'Recurrence:', task?.recurrence);
+    console.log("Task found:", !!task, "Recurrence:", task?.recurrence);
 
-    if (!task || !task.recurrence || task.recurrence === 'none') {
-      console.log('Early return: task not found or not recurring');
+    if (!task || !task.recurrence || task.recurrence === "none") {
+      console.log("Early return: task not found or not recurring");
       return;
     }
 
     // CRITICAL: Don't reschedule deleted tasks
     if (task.deletedAt) {
-      console.log('Task is deleted, cannot skip');
-      showAlert('Erro', 'Não é possível pular uma tarefa excluída');
+      console.log("Task is deleted, cannot skip");
+      showAlert("Erro", "Não é possível pular uma tarefa excluída");
       return;
     }
 
-    if (user?.role === 'dependent') {
-      showAlert('Aprovação Necessária', 'Pular tarefa requer aprovação.');
+    if (user?.role === "dependent") {
+      showAlert("Aprovação Necessária", "Pular tarefa requer aprovação.");
 
       // Use RecurrenceCalculator
-      const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence, task.weekDays);
+      const formattedDate = RecurrenceCalculator.calculateNextDate(
+        task.dueDate,
+        task.recurrence,
+        task.weekDays,
+      );
 
       familyService.createApprovalRequest({
         familyId: user!.familyId!,
         taskId: id,
         requestedBy: user!.uid,
         userName: user!.displayName || user!.email,
-        action: 'update',
+        action: "update",
         data: {
           dueDate: formattedDate,
           completed: false,
-          subtasks: task.subtasks.map(s => ({ ...s, completed: false })),
-        }
+          subtasks: task.subtasks,
+        },
       });
       return;
     }
 
     // Use RecurrenceCalculator for clean, testable logic
-    const formattedDate = RecurrenceCalculator.calculateNextDate(task.dueDate, task.recurrence, task.weekDays);
+    const formattedDate = RecurrenceCalculator.calculateNextDate(
+      task.dueDate,
+      task.recurrence,
+      task.weekDays,
+    );
 
-    console.log('Current task date:', task.dueDate);
-    console.log('Next date calculated (skip):', formattedDate);
+    console.log("Current task date:", task.dueDate);
+    console.log("Next date calculated (skip):", formattedDate);
 
     await notificationService.cancelTaskNotifications(task.notificationIds);
 
     const updates = {
       dueDate: formattedDate,
       completed: false,
-      subtasks: task.subtasks.map(s => ({ ...s, completed: false })),
+      subtasks: task.subtasks,
     };
 
-    console.log('Updating task with skip:', updates);
+    console.log("Updating task with skip:", updates);
     await taskService.updateTask(id, updates);
-    console.log('Task skipped successfully');
+    console.log("Task skipped successfully");
 
-
-    const nextTaskState = { ...task, ...updates, updatedAt: new Date().toISOString() };
-    const newIds = await notificationService.scheduleTaskNotifications(nextTaskState);
+    const nextTaskState = {
+      ...task,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    const newIds =
+      await notificationService.scheduleTaskNotifications(nextTaskState);
 
     set((state) => ({
       localNotificationMap: {
         ...state.localNotificationMap,
-        [id]: newIds
-      }
+        [id]: newIds,
+      },
     }));
   },
 
-  cleanupOldTasks: () => { },// Handled by Admin logic ideally
+  cleanupOldTasks: () => {}, // Handled by Admin logic ideally
 
   getTasks: () => {
     const tasks = get().tasks;
-    return tasks.filter(t => !t.deletedAt);
+    return tasks.filter((t) => !t.deletedAt);
   },
   getTaskById: (id: string) => get().tasks.find((task) => task.id === id),
   getTasksByDate: (date: string) => {
     const tasks = get().tasks;
-    const targetDate = new Date(date + 'T00:00:00');
+    const targetDate = new Date(date + "T00:00:00");
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const isToday = targetDate.getTime() === today.getTime();
 
     return tasks.filter((task) => {
-      // If deleted, only show if it was deleted ON this date? 
+      // If deleted, only show if it was deleted ON this date?
       // Or maybe we want to show deleted tasks in history?
       // User asked: "visualizar as tarefas excluidas, pelo menos na visualizacao da aba calendario, no dia selecionado mostrar tarefas concluidas, ativas, vencidas e excluidas"
 
