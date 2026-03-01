@@ -8,7 +8,7 @@ import { authService, userService } from "@src/firebase";
 import firebase from "@src/firebase/config/firebase.config";
 import { useUserStore } from "@store/userStore";
 import { fontSize, spacing } from "@styles/spacing";
-import { translateAuthError } from "@utils/authErrors";
+import { isValidEmail, translateAuthError } from "@utils/authErrors";
 import {
     configureGoogleSignin,
     GoogleSignin,
@@ -37,6 +37,8 @@ export default function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isResetLoading, setIsResetLoading] = useState(false);
+  const [passwordResetSent, setPasswordResetSent] = useState(false);
   const setUser = useUserStore((state) => state.setUser);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isGoogleConfigured, setIsGoogleConfigured] = useState(false);
@@ -261,6 +263,29 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
+  const handlePasswordReset = async () => {
+    if (!email) {
+      Alert.alert(t('auth.invalid_email'), t('auth.enter_email_for_reset'));
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      Alert.alert(t('auth.invalid_email'), t('auth.invalid_email_msg'));
+      return;
+    }
+
+    setIsResetLoading(true);
+    setPasswordResetSent(false);
+    try {
+      await authService.sendPasswordResetEmail(email.trim());
+      setPasswordResetSent(true);
+    } catch (error: any) {
+      Alert.alert(t('common.error'), translateAuthError(error));
+    } finally {
+      setIsResetLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -287,9 +312,14 @@ export default function LoginScreen({ navigation }: any) {
               placeholder={t('auth.email')}
               placeholderTextColor={colors.textSecondary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                if (passwordResetSent) {
+                  setPasswordResetSent(false);
+                }
+              }}
               keyboardType="email-address"
-              editable={!loading && !isGoogleLoading}
+              editable={!loading && !isGoogleLoading && !isResetLoading}
             />
 
             <View
@@ -302,7 +332,7 @@ export default function LoginScreen({ navigation }: any) {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                editable={!loading && !isGoogleLoading}
+                editable={!loading && !isGoogleLoading && !isResetLoading}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
@@ -320,10 +350,10 @@ export default function LoginScreen({ navigation }: any) {
               style={[
                 styles.button,
                 { backgroundColor: colors.primary },
-                (loading || isGoogleLoading) && styles.buttonDisabled,
+                (loading || isGoogleLoading || isResetLoading) && styles.buttonDisabled,
               ]}
               onPress={handleLogin}
-              disabled={loading || isGoogleLoading}
+              disabled={loading || isGoogleLoading || isResetLoading}
             >
               {loading ? (
                 <ActivityIndicator color="#FFF" />
@@ -331,6 +361,28 @@ export default function LoginScreen({ navigation }: any) {
                 <Text style={styles.buttonText}>{t('auth.login')}</Text>
               )}
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.forgotPasswordLink}
+              onPress={handlePasswordReset}
+              disabled={loading || isGoogleLoading || isResetLoading}
+            >
+              {isResetLoading ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+                  {t('auth.reset_password')}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            {passwordResetSent && (
+              <View style={[styles.resetFeedbackBox, { borderColor: colors.success, backgroundColor: colors.backgroundSecondary }]}>
+                <Text style={[styles.resetFeedbackText, { color: colors.success }]}>
+                  {t('auth.reset_email_sent', { email: email.trim() })}
+                </Text>
+              </View>
+            )}
 
             <View style={styles.dividerContainer}>
               <View
@@ -353,10 +405,10 @@ export default function LoginScreen({ navigation }: any) {
                   borderColor: colors.border,
                   backgroundColor: colors.background,
                 },
-                (loading || isGoogleLoading) && styles.buttonDisabled,
+                (loading || isGoogleLoading || isResetLoading) && styles.buttonDisabled,
               ]}
               onPress={handleGoogleLoginPress}
-              disabled={loading || isGoogleLoading}
+              disabled={loading || isGoogleLoading || isResetLoading}
             >
               {isGoogleLoading ? (
                 <ActivityIndicator color={colors.text} />
@@ -384,7 +436,7 @@ export default function LoginScreen({ navigation }: any) {
             </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate("Register")}
-              disabled={loading || isGoogleLoading}
+              disabled={loading || isGoogleLoading || isResetLoading}
             >
               <Text style={[styles.registerLink, { color: colors.primary }]}>
                 {t('auth.register')}
@@ -468,6 +520,24 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: fontSize.base,
     fontWeight: "600",
+  },
+  forgotPasswordLink: {
+    alignSelf: "flex-end",
+    marginTop: spacing.xs,
+  },
+  forgotPasswordText: {
+    fontSize: fontSize.sm,
+    fontWeight: "600",
+  },
+  resetFeedbackBox: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  resetFeedbackText: {
+    fontSize: fontSize.sm,
   },
   dividerContainer: {
     flexDirection: "row",
