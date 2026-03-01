@@ -172,25 +172,12 @@ export default function App() {
     }
   }, [colors.background]);
 
-  if (isLoading) {
-    return (
-      <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
-        <SafeAreaProvider>
-          <SafeAreaView style={[webContainerStyle, { backgroundColor: colors.background }]} edges={['left', 'right']}>
-            <StatusBar style={preferences.theme === 'dark' ? 'light' : 'dark'} backgroundColor={colors.background} />
-            <SplashScreen />
-          </SafeAreaView>
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
-    );
-  }
-
   return (
     <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
       <SafeAreaProvider>
         <SafeAreaView style={[webContainerStyle, { backgroundColor: colors.background }]} edges={['left', 'right']}>
           <StatusBar style={preferences.theme === 'dark' ? 'light' : 'dark'} backgroundColor={colors.background} />
-          <RootNavigator />
+          {isLoading ? <SplashScreen /> : <RootNavigator />}
         </SafeAreaView>
       </SafeAreaProvider>
     </GestureHandlerRootView>

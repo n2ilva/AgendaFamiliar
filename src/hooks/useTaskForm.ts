@@ -108,6 +108,11 @@ export const useTaskForm = ({
         const hours = String(dueTime.getHours()).padStart(2, "0");
         const minutes = String(dueTime.getMinutes()).padStart(2, "0");
         formattedTime = `${hours}:${minutes}`;
+      } else if (!taskId) {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, "0");
+        const minutes = String(now.getMinutes()).padStart(2, "0");
+        formattedTime = `${hours}:${minutes}`;
       }
 
       const taskData = {
@@ -126,9 +131,9 @@ export const useTaskForm = ({
         recurrenceEndDate:
           recurrence !== "none" && hasEndDate && recurrenceEndDate
             ? `${recurrenceEndDate.getFullYear()}-${String(
-                recurrenceEndDate.getMonth() + 1
+                recurrenceEndDate.getMonth() + 1,
               ).padStart(2, "0")}-${String(
-                recurrenceEndDate.getDate()
+                recurrenceEndDate.getDate(),
               ).padStart(2, "0")}`
             : undefined,
       };

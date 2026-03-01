@@ -248,8 +248,8 @@ export default function HomeScreen({ navigation }: any) {
       // 2. Category Filter
       if (selectedCategory && t.category !== selectedCategory) return false;
 
-      // 3. Date Filter - Skip for completed tasks (show all completed from last 7 days)
-      if (selectedStatus !== 'completed') {
+      // 3. Date Filter - Only apply when status is pending
+      if (selectedStatus === 'pending') {
         if (dateFilter === 'today') {
           const isOverdue = t.dueDate < todayStr && !t.completed;
           if (t.dueDate !== todayStr && !isOverdue) return false;
@@ -270,6 +270,7 @@ export default function HomeScreen({ navigation }: any) {
 
   // Calculate counts for status buttons using LOCAL timezone
   const todayStr = getTodayStr();
+  const currentDateFilter: 'today' | 'upcoming' = index === 0 ? 'today' : 'upcoming';
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const sevenDaysAgoYear = sevenDaysAgo.getFullYear();
@@ -288,18 +289,53 @@ export default function HomeScreen({ navigation }: any) {
     return true; // Include if no updatedAt (legacy tasks)
   }).length;
 
-  // Pending: active tasks (not deleted, not completed) with future or today's date
-  const pendingCount = tasks.filter(t =>
-    !t.completed && !t.deletedAt && t.dueDate >= todayStr
-  ).length;
+  // Pending: reflects current tab/date filter and selected category
+  const pendingCount = tasks.filter((t) => {
+    if (t.deletedAt || t.completed) return false;
+
+    if (selectedCategory && t.category !== selectedCategory) return false;
+
+    const pendingDateFilter: 'today' | 'upcoming' =
+      selectedStatus === 'pending' ? currentDateFilter : 'today';
+
+    if (pendingDateFilter === 'today') {
+      return t.dueDate === todayStr;
+    }
+
+    return t.dueDate > todayStr;
+  }).length;
 
   // Overdue: active tasks (not deleted, not completed) with past date
   const overdueCount = tasks.filter(t =>
     !t.completed && !t.deletedAt && t.dueDate < todayStr
   ).length;
 
+  const statusTasks = useMemo(() => {
+    return tasks
+      .filter((t) => {
+        if (t.deletedAt) return false;
+        if (selectedCategory && t.category !== selectedCategory) return false;
+
+        if (selectedStatus === 'overdue') {
+          return !t.completed && t.dueDate < todayStr;
+        }
+
+        if (selectedStatus === 'completed') {
+          if (!t.completed) return false;
+          if (t.updatedAt) {
+            const updatedDate = t.updatedAt.split('T')[0];
+            return updatedDate >= sevenDaysAgoStr;
+          }
+          return true;
+        }
+
+        return false;
+      })
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  }, [tasks, selectedStatus, selectedCategory, todayStr, sevenDaysAgoStr]);
+
   // Render task list for a tab
-  const renderTaskList = (taskList: Task[]) => (
+  const renderTaskList = (taskList: Task[], emptySubText?: string) => (
     <FlatList
       data={taskList}
       keyExtractor={(item) => item.id}
@@ -328,9 +364,11 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={[styles.emptyText, { color: colors.text }]}>
             {t('tasks.no_tasks')}
           </Text>
-          <Text style={[styles.emptySubText, { color: colors.textSecondary }]}>
-            {index === 0 ? t('tasks.no_tasks_today') : t('tasks.no_tasks_upcoming')}
-          </Text>
+          {emptySubText ? (
+            <Text style={[styles.emptySubText, { color: colors.textSecondary }]}>
+              {emptySubText}
+            </Text>
+          ) : null}
         </View>
       }
     />
@@ -500,12 +538,12 @@ export default function HomeScreen({ navigation }: any) {
         </ScrollView>
       </View>
 
-      {/* Swipeable TabView */}
+      {/* Task List */}
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      ) : (
+      ) : selectedStatus === 'pending' ? (
         <TabView
           navigationState={{ index, routes }}
           renderScene={renderScene}
@@ -513,6 +551,13 @@ export default function HomeScreen({ navigation }: any) {
           onIndexChange={setIndex}
           initialLayout={{ width: layout.width }}
         />
+      ) : (
+        renderTaskList(
+          statusTasks,
+          selectedStatus === 'overdue'
+            ? t('tasks.overdue')
+            : t('tasks.completed')
+        )
       )}
 
       {/* FAB */}

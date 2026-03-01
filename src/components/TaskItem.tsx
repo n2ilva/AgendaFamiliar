@@ -39,7 +39,10 @@ export default function TaskItem({ task, onPress, onToggle, onSkip, onSubtaskTog
   };
 
   const groupedSubtasks = groupSubtasksByCategory(task.subtasks);
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+  const subtaskCount = task.subtasks?.length || 0;
+  const completedSubtaskCount = task.subtasks?.filter((subtask) => subtask.completed).length || 0;
+  const hasSubtasks = subtaskCount > 0;
+  const allSubtasksCompleted = hasSubtasks && completedSubtaskCount === subtaskCount;
   const categoryColor = getCategoryColor(task.category, categories);
   const categoryIcon = getCategoryIcon(task.category, categories);
   const isRecurring = task.recurrence && task.recurrence !== 'none';
@@ -73,18 +76,44 @@ export default function TaskItem({ task, onPress, onToggle, onSkip, onSubtaskTog
                 </Text>
               )}
               {hasSubtasks && (
-                <TouchableOpacity
-                  style={styles.expandButton}
-                  onPress={() => setIsSubtasksExpanded((prev) => !prev)}
-                  disabled={isDeleted}
+                <View
+                  style={[
+                    styles.subtaskCountBadge,
+                    {
+                      backgroundColor: colors.backgroundSecondary,
+                      borderColor: allSubtasksCompleted ? colors.success : colors.danger,
+                    },
+                  ]}
                 >
-                  <Ionicons
-                    name={isSubtasksExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={18}
-                    color={colors.textSecondary}
-                  />
-                </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.subtaskCountText,
+                      { color: allSubtasksCompleted ? colors.success : colors.danger },
+                    ]}
+                  >
+                    {completedSubtaskCount}/{subtaskCount}
+                  </Text>
+                </View>
               )}
+              <TouchableOpacity
+                style={[
+                  styles.expandButton,
+                  { backgroundColor: colors.backgroundSecondary, borderColor: colors.border },
+                  (!hasSubtasks || isDeleted) && styles.expandButtonDisabled,
+                ]}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  if (!hasSubtasks || isDeleted) return;
+                  setIsSubtasksExpanded((prev) => !prev);
+                }}
+                disabled={isDeleted}
+              >
+                <Ionicons
+                  name={isSubtasksExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={hasSubtasks ? colors.textSecondary : colors.textTertiary}
+                />
+              </TouchableOpacity>
             </View>
           </View>
           <View style={styles.mainRow}>
@@ -116,12 +145,18 @@ export default function TaskItem({ task, onPress, onToggle, onSkip, onSubtaskTog
               </Text>
             </View>
             {isRecurring && onSkip && !task.completed && !isDeleted && (
-              <TouchableOpacity onPress={() => onSkip(task.id)} style={{ padding: 4 }}>
+              <TouchableOpacity
+                onPress={() => onSkip(task.id)}
+                style={[styles.iconActionButton, { backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
+              >
                 <Ionicons name="play-skip-forward-outline" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
             {onDelete && !isDeleted && (
-              <TouchableOpacity onPress={() => onDelete(task.id)} style={{ padding: 4, marginLeft: 4 }}>
+              <TouchableOpacity
+                onPress={() => onDelete(task.id)}
+                style={[styles.iconActionButton, { marginLeft: 6, backgroundColor: colors.backgroundSecondary, borderColor: colors.border }]}
+              >
                 <Ionicons name="trash-outline" size={20} color={colors.danger} />
               </TouchableOpacity>
             )}
@@ -131,14 +166,14 @@ export default function TaskItem({ task, onPress, onToggle, onSkip, onSubtaskTog
 
       {/* Subtasks Grouped Display */}
       {hasSubtasks && isSubtasksExpanded && (
-        <View style={[styles.subtasksContainer, { borderTopColor: colors.border }]}>
+        <View style={[styles.subtasksContainer, { borderTopColor: colors.border, backgroundColor: colors.backgroundSecondary }]}>
           {Object.entries(groupedSubtasks).map(([category, subtasks]) => (
             <View key={category} style={styles.subtaskGroup}>
               {category !== t('common.no_category', 'Sem Categoria') && category !== '' && (
                 <Text style={[styles.subtaskCategoryHeader, { color: colors.primary }]}>{category}</Text>
               )}
               {subtasks.map((subtask) => (
-                <View key={subtask.id} style={styles.subtaskRow}>
+                <View key={subtask.id} style={[styles.subtaskRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
                   <TouchableOpacity
                     style={[
                       styles.subtaskCheckbox,
@@ -171,7 +206,7 @@ export default function TaskItem({ task, onPress, onToggle, onSkip, onSubtaskTog
 
 const styles = StyleSheet.create({
   wrapper: {
-    borderRadius: 12,
+    borderRadius: 14,
     marginHorizontal: spacing.lg,
     marginVertical: spacing.xs,
     padding: spacing.md,
@@ -197,26 +232,48 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   categoryContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: spacing.sm,
+    gap: spacing.xs,
+  },
+  subtaskCountBadge: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: spacing.xs + 2,
+    paddingVertical: 2,
+  },
+  subtaskCountText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
   },
   expandButton: {
-    padding: 4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  expandButtonDisabled: {
+    opacity: 0.45,
   },
   categoryIconContainer: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.xs,
@@ -226,15 +283,16 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    flexShrink: 1,
   },
   mainRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
@@ -246,7 +304,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.base,
     fontWeight: fontWeight.semibold,
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
   titleCompleted: {
     textDecorationLine: 'line-through',
@@ -254,19 +312,30 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: fontSize.sm,
-    marginBottom: spacing.xs,
+    marginBottom: 6,
   },
   date: {
     fontSize: fontSize.xs,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   recurrenceText: {
     fontWeight: '500',
   },
+  iconActionButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   subtasksContainer: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.xs,
     borderTopWidth: 1,
+    borderRadius: 10,
   },
   subtaskGroup: {
     marginBottom: spacing.sm,
@@ -275,13 +344,19 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     marginBottom: 4,
-    marginLeft: 32,
+    marginLeft: 0,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   subtaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 32,
+    marginLeft: 0,
     marginBottom: 4,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
   },
   subtaskCheckbox: {
     width: 18,
@@ -294,5 +369,6 @@ const styles = StyleSheet.create({
   },
   subtaskText: {
     fontSize: fontSize.sm,
+    flex: 1,
   },
 });
