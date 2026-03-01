@@ -7,7 +7,7 @@ export default {
         slug: 'agenda-familiar',
         version: '1.0.0',
         orientation: 'portrait',
-        icon: 'assets/adaptive-icon.png',
+        icon: 'assets/agendafamiliar.png',
         scheme: 'agendafamiliar',
         userInterfaceStyle: 'automatic',
         newArchEnabled: true,
@@ -19,7 +19,7 @@ export default {
             package: 'com.natanael.agendafamiliar',
             adaptiveIcon: {
                 backgroundColor: '#E6F4FE',
-                foregroundImage: 'assets/adaptive-icon.png',
+                foregroundImage: 'assets/agendafamiliar.png',
             },
             edgeToEdgeEnabled: true,
             predictiveBackGestureEnabled: false,
@@ -34,13 +34,13 @@ export default {
         },
         web: {
             output: 'static',
-            favicon: 'assets/favicon.png',
+            favicon: 'assets/agendafamiliar.png',
         },
         plugins: [
             [
                 'expo-splash-screen',
                 {
-                    image: 'assets/adaptive-icon.png',
+                    image: 'assets/agendafamiliar.png',
                     imageWidth: 200,
                     resizeMode: 'contain',
                     backgroundColor: '#ffffff',
@@ -52,7 +52,7 @@ export default {
             [
                 'expo-notifications',
                 {
-                    icon: './assets/adaptive-icon.png',
+                    icon: './assets/agendafamiliar.png',
                     color: '#5271FF',
                     defaultChannel: 'default',
                     sounds: [],
