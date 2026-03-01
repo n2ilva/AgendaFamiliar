@@ -1,8 +1,9 @@
 // Dynamic Expo configuration that embeds environment variables into builds
 const IS_DEV = process.env.APP_VARIANT === 'development';
 const REPOSITORY_NAME = process.env.GITHUB_REPOSITORY?.split('/')[1];
-const WEB_BASE_PATH = process.env.EXPO_PUBLIC_BASE_PATH
-    || (process.env.GITHUB_ACTIONS === 'true' && REPOSITORY_NAME ? `/${REPOSITORY_NAME}` : '');
+const WEB_BASE_PATH = process.env.EXPO_PUBLIC_BASE_PATH !== undefined
+    ? process.env.EXPO_PUBLIC_BASE_PATH
+    : (process.env.GITHUB_ACTIONS === 'true' && REPOSITORY_NAME ? `/${REPOSITORY_NAME}` : '');
 
 export default {
     expo: {

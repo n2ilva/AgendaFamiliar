@@ -39,6 +39,8 @@ jobs:
 
       - name: Build Expo web
         run: npm run build:web
+        env:
+          EXPO_PUBLIC_BASE_PATH: ""
 
       - name: Disable Jekyll processing
         run: touch dist/.nojekyll
