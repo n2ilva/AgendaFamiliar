@@ -5,7 +5,7 @@ import { fontSize, fontWeight, spacing } from '@styles/spacing';
 import type { Task } from '@types';
 import { formatDate } from '@utils/dateUtils';
 import { getCategoryColor, getCategoryIcon, getCategoryLabel } from '@utils/taskUtils';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -23,6 +23,7 @@ export default function TaskItem({ task, onPress, onToggle, onSkip, onSubtaskTog
   const { t } = useTranslation();
   const colors = useThemeColors();
   const { categories } = useCategoryStore();
+  const [isSubtasksExpanded, setIsSubtasksExpanded] = useState(false);
 
   // ... (existing helper functions) ...
 
@@ -65,11 +66,26 @@ export default function TaskItem({ task, onPress, onToggle, onSkip, onSubtaskTog
                 {getCategoryLabel(task.category, categories)}
               </Text>
             </View>
-            {isDeleted && (
-              <Text style={[styles.categoryLabel, { color: colors.danger, marginLeft: 8 }]}>
-                {t('tasks.deleted', 'EXCLUÍDA')}
-              </Text>
-            )}
+            <View style={styles.headerActions}>
+              {isDeleted && (
+                <Text style={[styles.categoryLabel, { color: colors.danger, marginRight: 8 }]}>
+                  {t('tasks.deleted', 'EXCLUÍDA')}
+                </Text>
+              )}
+              {hasSubtasks && (
+                <TouchableOpacity
+                  style={styles.expandButton}
+                  onPress={() => setIsSubtasksExpanded((prev) => !prev)}
+                  disabled={isDeleted}
+                >
+                  <Ionicons
+                    name={isSubtasksExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
           <View style={styles.mainRow}>
             <TouchableOpacity
@@ -114,7 +130,7 @@ export default function TaskItem({ task, onPress, onToggle, onSkip, onSubtaskTog
       </TouchableOpacity>
 
       {/* Subtasks Grouped Display */}
-      {hasSubtasks && (
+      {hasSubtasks && isSubtasksExpanded && (
         <View style={[styles.subtasksContainer, { borderTopColor: colors.border }]}>
           {Object.entries(groupedSubtasks).map(([category, subtasks]) => (
             <View key={category} style={styles.subtaskGroup}>
@@ -188,6 +204,14 @@ const styles = StyleSheet.create({
   categoryContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: spacing.sm,
+  },
+  expandButton: {
+    padding: 4,
   },
   categoryIconContainer: {
     width: 22,
